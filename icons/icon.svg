@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <rect x="8" y="8" width="112" height="112" rx="27" fill="#37352f"/>
-  <path d="M27 42c0-6.1 4.9-11 11-11h17l10 10h25c6.1 0 11 4.9 11 11v40c0 6.1-4.9 11-11 11H38c-6.1 0-11-4.9-11-11V42Z" fill="#f7f6f2"/>
-  <rect x="42" y="56" width="17" height="17" rx="4" fill="#37352f"/>
-  <rect x="69" y="56" width="17" height="17" rx="4" fill="#5b8def"/>
-  <rect x="42" y="80" width="17" height="17" rx="4" fill="#37352f"/>
-  <rect x="69" y="80" width="17" height="17" rx="4" fill="#37352f"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">Workspace Tiles</title>
+  <rect x="6" y="6" width="116" height="116" rx="13" fill="#000000"/>
+  <rect x="20" y="21" width="39" height="39" rx="7" fill="#ffffff"/>
+  <rect x="68" y="21" width="39" height="39" rx="7" fill="#0068d6"/>
+  <rect x="20" y="68" width="39" height="39" rx="7" fill="#ffffff"/>
+  <rect x="68" y="68" width="39" height="39" rx="7" fill="#ffffff"/>
 </svg>

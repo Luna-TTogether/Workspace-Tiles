@@ -14,18 +14,19 @@
 
     <div class="modal-backdrop" id="modalBackdrop" hidden></div>
     <div class="menu-layer" id="menuLayer" hidden></div>
+    <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
 
     <template id="workspaceTileTemplate">
       <article class="workspace-tile">
-        <button class="tile-body" type="button">
+        <div class="tile-body">
           <div class="tile-header">
             <div class="tile-copy">
-              <h2></h2>
+              <h2><button class="workspace-open-button" type="button"></button></h2>
               <p></p>
             </div>
           </div>
           <div class="favicon-preview"></div>
-        </button>
+        </div>
         <div class="tile-actions">
           <button class="icon-button open-all-button" type="button" title="打开全部" aria-label="打开全部">
             <svg viewBox="0 0 24 24" aria-hidden="true">

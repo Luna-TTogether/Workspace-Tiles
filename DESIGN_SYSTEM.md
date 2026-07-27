@@ -2,6 +2,7 @@
 
 本项目的字体、颜色和材质规则参考 Vercel Geist Design System：
 
+- [Introduction](https://vercel.com/geist/introduction)
 - [Typography](https://vercel.com/geist/typography)
 - [Colors](https://vercel.com/geist/colors)
 - [Materials](https://vercel.com/geist/materials)
@@ -9,10 +10,15 @@
 - [Choicebox](https://vercel.com/geist/choicebox)
 - [Checkbox](https://vercel.com/geist/checkbox)
 - [Empty State](https://vercel.com/geist/empty-state)
+- [Textarea](https://vercel.com/geist/textarea)
+- [Scroller](https://vercel.com/geist/scroller)
+- [Modal](https://vercel.com/geist/modal)
+- [Input](https://vercel.com/geist/input)
+- [Toast](https://vercel.com/geist/toast)
 
 ## 字体
 
-界面优先使用 Geist Sans。中文字符回退到 PingFang SC、Hiragino Sans GB 或 Microsoft YaHei，不从网络加载字体。
+界面使用随扩展打包的 Geist Sans 可变字体，不依赖运行时网络。中文字符回退到 PingFang SC、Hiragino Sans GB 或 Microsoft YaHei。字体文件使用 SIL Open Font License，许可证保存在 `fonts/OFL.txt`。
 
 | 语义 | 字号 / 行高 | 字重 | 用途 |
 | --- | --- | --- | --- |
@@ -40,6 +46,7 @@
 | `--muted` | `#666666` | `#a1a1a1` | 次要文本和图标 |
 | `--focus` | `#0068d6` | `#52a8ff` | 键盘焦点环 |
 | `--danger` | `#e5484d` | `#ff6166` | 删除和错误 |
+| `--success` | `#1a7f37` | `#3ecf8e` | 保存成功等正向反馈 |
 
 颜色层级遵循 Geist 用法：低阶灰用于背景，中阶灰用于边框，高阶灰用于文本和图标。不依赖颜色单独传达信息。
 
@@ -54,6 +61,12 @@
 
 同一元素只使用一种 Material。阴影只表达高度，边界仍由边框和键盘焦点环表达。
 
+## 网格与图标
+
+页面布局遵循 4px 空间网格，常用间距通过 `--space-*` token 表达。组件内部优先使用 8px、12px、16px，区块之间使用 24px、32px 或更大间距。
+
+界面图标统一使用 16px SVG、`currentColor` 和 1.5px 描边。展开箭头通过旋转同一图标表达状态，不混用 Unicode 符号、图片字形或实心圆点。
+
 ## Button
 
 | 类型 | 用途 |
@@ -67,13 +80,15 @@
 
 ## Checkbox
 
-Checkbox 仅用于书签树的多选。保留原生 `<input type="checkbox">`，并通过 `<fieldset>` / `<legend>` 声明选择组。每个选项都有真实 `<label>`，点击名称即可切换。
+Checkbox 仅用于书签树和当前窗口标签页列表的多选。保留原生 `<input type="checkbox">`，并通过 `<fieldset>` / `<legend>` 声明选择组。每个选项都有真实 `<label>`，点击名称即可切换。
 
 文件夹部分选中时：
 
 - Checkbox 使用 `indeterminate` 视觉状态。
 - 同时显示 `X/Y` 已选数量，不只依赖颜色或横线。
 - 空文件夹可禁用，但必须说明“此文件夹没有网站”。
+
+标签页选择器的“全选”使用同一 Checkbox 样式，放在列表顶部并在滚动时吸顶。部分标签页已选时使用 `indeterminate` 状态；无有效 URL 的禁用标签页不计入全选范围。
 
 ## Empty State
 
@@ -88,3 +103,33 @@ Checkbox 仅用于书签树的多选。保留原生 `<input type="checkbox">`，
 ## Choicebox
 
 Choicebox 仅用于 4–6 个同组、带标题和说明的单选或多选项。当前工作区导航、打开方式和书签树都不符合这个语义，因此不在当前界面中引入。未来如果增加“默认打开方式”等少量持久选项，再进行评估。
+
+## Scroller 与分页
+
+工作区磁贴每页固定显示 16 个网站。多页时使用“上一页 / 当前页数 / 下一页”控件，不随总页数生成大量圆点。分页区使用独立的 28px 底部区域，不与第四行网站重叠。
+
+工作区弹窗每批渲染 64 个网站，接近底部时再追加下一批。可继续滚动时，容器边缘使用渐隐提示剩余内容。项目必须保持稳定尺寸和 DOM 阅读顺序。
+
+## Textarea
+
+Textarea 只用于会自然换行的描述、备注等多行内容。工作区名称、网站名称和 URL 保持使用单行 Input。当前界面没有符合语义的多行字段，因此不引入 Textarea。
+
+## Modal
+
+弹窗必须使用 `aria-labelledby` 关联可见标题，并把键盘焦点限制在弹窗内部。打开时聚焦首个合理控件，关闭后把焦点还给触发按钮；嵌套流程取消后返回上一级弹窗。
+
+普通弹窗允许按 Escape 或点击遮罩关闭。删除等破坏性弹窗不允许点击遮罩误关，默认焦点放在“取消”，并使用陈述式标题与明确的不可撤销后果说明。
+
+## Input 与校验
+
+名称在提交前去除首尾空格。URL 在失焦或提交时校验，错误紧邻字段展示，并通过 `aria-describedby` 和 `aria-invalid` 暴露给辅助技术。错误发生后保留用户输入，不用 Toast 代替可直接修正的字段错误。
+
+## Toast
+
+Toast 只反馈已经结束且无需继续操作的结果，例如保存成功或存储失败。消息保持简短，一次只显示一条，并通过 `aria-live="polite"` 播报；字段错误继续使用行内提示。
+
+## 规范执行
+
+新功能必须复用现有 Token 和组件工厂，并遵循根目录 `AGENTS.md`。提交前运行 `npm run check`，检查颜色字面量、远程资源、原生提示框、Unicode 图标、按钮嵌套、图标按钮标签以及基础交互组件是否仍然存在。GitHub Push 和 Pull Request 会通过 `.github/workflows/ui-check.yml` 自动运行同一套检查。
+
+自动检查不能替代视觉和键盘验收。浅色、深色、560px 窄屏、焦点顺序、错误状态、加载状态和存储失败场景按 `.github/pull_request_template.md` 人工确认。

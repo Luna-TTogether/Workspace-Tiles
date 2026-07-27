@@ -1,0 +1,11 @@
+{
+  "name": "workspace-tiles",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "check": "node scripts/ui-audit.mjs",
+    "check:ui": "node scripts/ui-audit.mjs",
+    "test:ui-audit": "node scripts/ui-audit.mjs --self-test",
+    "test": "npm run test:ui-audit && npm run check"
+  }
+}

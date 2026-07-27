@@ -10,7 +10,7 @@
     "128": "icons/icon128.png"
   },
   "permissions": ["storage"],
-  "optional_permissions": ["bookmarks"],
+  "optional_permissions": ["bookmarks", "tabs"],
   "chrome_url_overrides": {
     "newtab": "newtab.html"
   }
