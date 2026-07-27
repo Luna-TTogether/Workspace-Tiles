@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Workspace Tiles</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="page-shell">
+      <section class="workspace-grid" id="workspaceGrid" aria-label="工作区"></section>
+      <section class="empty-page-state" id="emptyPageState" aria-label="工作区空状态" hidden></section>
+    </main>
+
+    <div class="modal-backdrop" id="modalBackdrop" hidden></div>
+    <div class="menu-layer" id="menuLayer" hidden></div>
+
+    <template id="workspaceTileTemplate">
+      <article class="workspace-tile">
+        <button class="tile-body" type="button">
+          <div class="tile-header">
+            <div class="tile-copy">
+              <h2></h2>
+              <p></p>
+            </div>
+          </div>
+          <div class="favicon-preview"></div>
+        </button>
+        <div class="tile-actions">
+          <button class="icon-button open-all-button" type="button" title="打开全部" aria-label="打开全部">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M15 3h6v6"></path>
+              <path d="M10 14 21 3"></path>
+              <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"></path>
+            </svg>
+          </button>
+          <button class="icon-button more-workspace-button" type="button" title="更多" aria-label="更多">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="6" cy="12" r="1.7"></circle>
+              <circle cx="12" cy="12" r="1.7"></circle>
+              <circle cx="18" cy="12" r="1.7"></circle>
+            </svg>
+          </button>
+        </div>
+      </article>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
