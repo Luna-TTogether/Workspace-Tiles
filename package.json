@@ -1,7 +1,8 @@
 {
   "name": "workspace-tiles",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
+  "type": "module",
   "scripts": {
     "check": "node scripts/ui-audit.mjs",
     "check:ui": "node scripts/ui-audit.mjs",

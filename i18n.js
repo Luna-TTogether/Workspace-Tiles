@@ -1,6 +1,5 @@
-(() => {
-  const STORAGE_KEY = "workspaceTilesLanguage";
-  const DEFAULT_LANGUAGE = "zh-CN";
+const STORAGE_KEY = "workspaceTilesLanguage";
+  const DEFAULT_LANGUAGE = "en";
   const SUPPORTED_LANGUAGES = new Set(["zh-CN", "en"]);
 
   const english = {
@@ -288,11 +287,8 @@
     return language === "en" ? english[key] || key : key;
   }
 
-  window.WorkspaceTilesI18n = {
-    init,
-    setLanguage,
-    getLanguage: () => language,
-    applyDocumentLanguage,
-    t,
-  };
-})();
+function getLanguage() {
+  return language;
+}
+
+export { init, setLanguage, getLanguage, applyDocumentLanguage, t };

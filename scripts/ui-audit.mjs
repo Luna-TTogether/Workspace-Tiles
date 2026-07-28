@@ -146,8 +146,17 @@ function runSelfTest() {
 
 if (process.argv.includes("--self-test")) runSelfTest();
 
-runSyntaxCheck("app.js");
-runSyntaxCheck("i18n.js");
+const sourceFiles = [
+  "app.js",
+  "backup.js",
+  "forms.js",
+  "i18n.js",
+  "reorder.js",
+  "state.js",
+  "ui-components.js",
+  "utils.js",
+];
+sourceFiles.forEach(runSyntaxCheck);
 
 try {
   JSON.parse(read("manifest.json"));
@@ -157,17 +166,21 @@ try {
 
 const css = read("styles.css");
 const app = read("app.js");
+const uiComponents = read("ui-components.js");
 const html = read("newtab.html");
 const designSystem = read("DESIGN_SYSTEM.md");
 
 checkCss(css);
 checkHtml(html);
-checkForbiddenText("app.js", app);
+sourceFiles.forEach((filename) => {
+  const source = read(filename);
+  checkForbiddenText(filename, source);
+  checkScriptAndMarkupColors(filename, source);
+});
 checkForbiddenText("newtab.html", html);
-checkScriptAndMarkupColors("app.js", app);
 checkScriptAndMarkupColors("newtab.html", html);
 
-checkRequiredPatterns("app.js", app, [
+checkRequiredPatterns("ui-components.js", uiComponents, [
   { pattern: /function createDialog\(/, message: "缺少统一弹窗工厂 createDialog()" },
   { pattern: /function showModal\(/, message: "缺少统一弹窗入口 showModal()" },
   { pattern: /function trapModalFocus\(/, message: "缺少弹窗焦点循环" },
