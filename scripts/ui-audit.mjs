@@ -147,6 +147,7 @@ function runSelfTest() {
 if (process.argv.includes("--self-test")) runSelfTest();
 
 runSyntaxCheck("app.js");
+runSyntaxCheck("i18n.js");
 
 try {
   JSON.parse(read("manifest.json"));

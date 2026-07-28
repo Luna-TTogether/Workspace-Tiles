@@ -6,6 +6,7 @@ import path from "node:path";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const source = readFileSync(path.join(projectRoot, "app.js"), "utf8");
+const i18nSource = readFileSync(path.join(projectRoot, "i18n.js"), "utf8");
 
 function createElementStub() {
   return {
@@ -29,6 +30,8 @@ const context = vm.createContext({
   },
 });
 
+context.window = context;
+vm.runInContext(i18nSource, context, { filename: "i18n.js" });
 vm.runInContext(source, context, { filename: "app.js" });
 
 function evaluate(expression, values = {}) {

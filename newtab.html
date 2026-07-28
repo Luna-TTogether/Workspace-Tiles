@@ -8,14 +8,14 @@
   </head>
   <body>
     <main class="page-shell">
-      <section class="workspace-grid" id="workspaceGrid" aria-label="工作区"></section>
-      <section class="empty-page-state" id="emptyPageState" aria-label="工作区空状态" hidden></section>
+      <section class="workspace-grid" id="workspaceGrid" aria-label="工作区" data-i18n-aria-label="工作区"></section>
+      <section class="empty-page-state" id="emptyPageState" aria-label="工作区空状态" data-i18n-aria-label="工作区空状态" hidden></section>
     </main>
 
     <div class="modal-backdrop" id="modalBackdrop" hidden></div>
     <div class="menu-layer" id="menuLayer" hidden></div>
     <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
-    <p class="visually-hidden" id="reorderInstructions">
+    <p class="visually-hidden" id="reorderInstructions" data-i18n="按空格键或回车键开始排序，使用方向键移动，按空格键或回车键保存，按 Escape 取消。">
       按空格键或回车键开始排序，使用方向键移动，按空格键或回车键保存，按 Escape 取消。
     </p>
     <div class="visually-hidden" id="reorderStatus" aria-live="assertive" aria-atomic="true"></div>
@@ -32,14 +32,14 @@
           <div class="favicon-preview"></div>
         </div>
         <div class="tile-actions">
-          <button class="icon-button open-all-button" type="button" title="打开全部" aria-label="打开全部">
+          <button class="icon-button open-all-button" type="button" title="打开全部" aria-label="打开全部" data-i18n-title="打开全部" data-i18n-aria-label="打开全部">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M15 3h6v6"></path>
               <path d="M10 14 21 3"></path>
               <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"></path>
             </svg>
           </button>
-          <button class="icon-button more-workspace-button" type="button" title="更多" aria-label="更多">
+          <button class="icon-button more-workspace-button" type="button" title="更多" aria-label="更多" data-i18n-title="更多" data-i18n-aria-label="更多">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="6" cy="12" r="1.7"></circle>
               <circle cx="12" cy="12" r="1.7"></circle>
@@ -50,6 +50,7 @@
       </article>
     </template>
 
+    <script src="i18n.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

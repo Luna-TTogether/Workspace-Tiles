@@ -2,6 +2,8 @@ const STORAGE_KEY = "workspaceTilesState";
 const BACKUP_FORMAT = "workspace-tiles-backup";
 const BACKUP_SCHEMA_VERSION = 1;
 const MAX_BACKUP_FILE_SIZE = 10 * 1024 * 1024;
+const i18n = window.WorkspaceTilesI18n;
+const t = (key, values) => i18n.t(key, values);
 const grid = document.getElementById("workspaceGrid");
 const emptyPageState = document.getElementById("emptyPageState");
 const backdrop = document.getElementById("modalBackdrop");
@@ -64,6 +66,7 @@ document.addEventListener("visibilitychange", () => {
 });
 
 async function init() {
+  await i18n.init();
   renderManagementEntry();
   state = await loadState();
   render();
@@ -72,7 +75,7 @@ async function init() {
 function renderManagementEntry() {
   if (document.getElementById("managementButton")) return;
   const button = createIconButton(
-    "菜单",
+    t("菜单"),
     "M4 7h16M4 12h16M4 17h16",
     (event) => toggleManagementPanel(event.currentTarget),
   );
@@ -93,7 +96,7 @@ function toggleManagementPanel(anchor) {
 }
 
 function openManagementPanel(anchor, selectedTab = "export") {
-  managementActiveTab = ["export", "import", "about"].includes(selectedTab) ? selectedTab : "export";
+  managementActiveTab = ["export", "import", "language", "about"].includes(selectedTab) ? selectedTab : "export";
 
   closeMenu({ restoreFocus: false });
 
@@ -101,12 +104,12 @@ function openManagementPanel(anchor, selectedTab = "export") {
   panel.className = "management-panel";
   panel.setAttribute("role", "dialog");
   panel.setAttribute("aria-modal", "false");
-  panel.setAttribute("aria-label", "Workspace Tiles 菜单");
+  panel.setAttribute("aria-label", t("Workspace Tiles 菜单"));
 
   const navigation = document.createElement("div");
   navigation.className = "management-tabs";
   navigation.setAttribute("role", "tablist");
-  navigation.setAttribute("aria-label", "管理功能");
+  navigation.setAttribute("aria-label", t("管理功能"));
 
   const content = document.createElement("div");
   content.className = "management-content";
@@ -114,9 +117,10 @@ function openManagementPanel(anchor, selectedTab = "export") {
   content.setAttribute("role", "tabpanel");
 
   const tabDefinitions = [
-    ["export", "导出备份"],
-    ["import", "导入恢复"],
-    ["about", "关于"],
+    ["export", t("exportMenuLabel")],
+    ["import", t("importMenuLabel")],
+    ["language", t("语言")],
+    ["about", t("关于")],
   ];
   const tabs = tabDefinitions.map(([tabId, label]) => {
     const tab = createButton(label, () => selectManagementTab(panel, tabId), { variant: "tertiary" });
@@ -167,6 +171,7 @@ function selectManagementTab(panel, tabId) {
   content.setAttribute("aria-labelledby", `management-tab-${tabId}`);
   content.replaceChildren();
   if (tabId === "import") renderImportPanel(content);
+  else if (tabId === "language") renderLanguagePanel(content);
   else if (tabId === "about") renderAboutPanel(content);
   else renderExportPanel(content);
 }
@@ -190,14 +195,14 @@ function createManagementCopy(title, paragraphs) {
 }
 
 function renderExportPanel(content) {
-  content.append(createManagementCopy("导出备份", [
-    "将当前所有工作区、网站和排列顺序保存为一个 JSON 备份文件。备份只会保存到你选择的位置，不会上传到服务器。",
-    "建议在卸载插件、迁移电脑或进行重要调整前导出备份。",
+  content.append(createManagementCopy(t("导出备份"), [
+    t("将当前所有工作区、网站和排列顺序保存为一个 JSON 备份文件。备份只会保存到你选择的位置，不会上传到服务器。"),
+    t("建议在卸载插件、迁移电脑或进行重要调整前导出备份。"),
   ]));
 
-  const button = createButton("选择保存位置", null, {
+  const button = createButton(t("选择保存位置"), null, {
     variant: "primary",
-    loadingText: "正在导出",
+    loadingText: t("正在导出"),
   });
   button.classList.add("management-action");
   button.addEventListener("click", async () => {
@@ -206,9 +211,9 @@ function renderExportPanel(content) {
     try {
       const backup = createBackup(state);
       const saved = await saveBackupFile(JSON.stringify(backup, null, 2), createBackupFilename());
-      if (saved) showToast("备份已导出", "success");
+      if (saved) showToast(t("备份已导出"), "success");
     } catch (error) {
-      if (error?.name !== "AbortError") showToast("无法导出备份。请重试。", "error");
+      if (error?.name !== "AbortError") showToast(t("无法导出备份。请重试。"), "error");
     } finally {
       if (button.isConnected) setButtonLoading(button, false);
     }
@@ -217,8 +222,9 @@ function renderExportPanel(content) {
 }
 
 function renderImportPanel(content) {
-  content.append(createManagementCopy("导入恢复", [
-    "导入会完整替换当前所有工作区、网站和排列顺序，不会与当前数据合并。建议先导出当前数据作为备份。",
+  content.append(createManagementCopy(t("导入恢复"), [
+    t("导入会完整替换当前所有工作区、网站和排列顺序，不会与当前数据合并。"),
+    t("建议先导出当前数据作为备份。"),
   ]));
 
   const input = document.createElement("input");
@@ -231,9 +237,9 @@ function renderImportPanel(content) {
   error.id = createId("import-error");
   error.hidden = true;
 
-  const button = createButton("选择备份文件", () => input.click(), {
+  const button = createButton(t("选择备份文件"), () => input.click(), {
     variant: "primary",
-    loadingText: "正在读取",
+    loadingText: t("正在读取"),
   });
   button.classList.add("management-action");
   button.setAttribute("aria-describedby", error.id);
@@ -247,14 +253,14 @@ function renderImportPanel(content) {
     setButtonLoading(button, true);
     try {
       if (file.size > MAX_BACKUP_FILE_SIZE) {
-        throw new BackupValidationError("备份文件超过 10 MB，无法导入。");
+        throw new BackupValidationError(t("备份文件超过 10 MB，无法导入。"));
       }
       const parsed = validateBackupData(JSON.parse(await file.text()));
       openImportConfirmation(parsed);
     } catch (importError) {
       const message = importError instanceof SyntaxError
-        ? "无法导入：文件不是有效的 JSON。"
-        : importError?.userMessage || "无法导入：这不是有效的 Workspace Tiles 备份文件。";
+        ? t("无法导入：文件不是有效的 JSON。")
+        : importError?.userMessage || t("无法导入：这不是有效的 Workspace Tiles 备份文件。");
       setFieldError(button, error, message);
       button.focus();
     } finally {
@@ -263,6 +269,60 @@ function renderImportPanel(content) {
   });
 
   content.append(input, error, button);
+}
+
+function renderLanguagePanel(content) {
+  content.append(createManagementCopy(t("语言"), [
+    t("选择界面语言。更改会立即应用并保存在此设备上。"),
+  ]));
+
+  const options = document.createElement("fieldset");
+  options.className = "language-options";
+  const legend = document.createElement("legend");
+  legend.className = "visually-hidden";
+  legend.textContent = t("语言");
+  options.append(legend);
+
+  const languages = [
+    ["zh-CN", "简体中文"],
+    ["en", "英语"],
+  ];
+  languages.forEach(([value, labelKey]) => {
+    const isSelected = i18n.getLanguage() === value;
+    const label = document.createElement("label");
+    label.className = "language-radio-option";
+    const radio = document.createElement("input");
+    radio.type = "radio";
+    radio.name = "interface-language";
+    radio.value = value;
+    radio.checked = isSelected;
+    radio.addEventListener("change", () => {
+      if (radio.checked) changeLanguage(value, options);
+    });
+    const text = document.createElement("span");
+    text.textContent = t(labelKey);
+    label.append(radio, text);
+    options.append(label);
+  });
+  content.append(options);
+}
+
+async function changeLanguage(nextLanguage, fieldset) {
+  if (nextLanguage === i18n.getLanguage()) return;
+  fieldset?.setAttribute("aria-busy", "true");
+  fieldset?.querySelectorAll("input").forEach((input) => { input.disabled = true; });
+  try {
+    await i18n.setLanguage(nextLanguage);
+    const managementButton = document.getElementById("managementButton");
+    managementButton.title = t("菜单");
+    managementButton.ariaLabel = t("菜单");
+    render();
+    openManagementPanel(managementButton, "language");
+  } catch {
+    const managementButton = document.getElementById("managementButton");
+    openManagementPanel(managementButton, "language");
+    showToast(t("无法保存语言设置。请重试。"), "error");
+  }
 }
 
 function renderAboutPanel(content) {
@@ -312,7 +372,7 @@ async function saveBackupFile(contents, filename) {
       suggestedName: filename,
       startIn: "downloads",
       types: [{
-        description: "Workspace Tiles JSON 备份",
+        description: t("Workspace Tiles JSON 备份"),
         accept: { "application/json": [".json"] },
       }],
     });
@@ -344,55 +404,55 @@ class BackupValidationError extends Error {
 
 function validateBackupData(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new BackupValidationError("无法导入：这不是有效的 Workspace Tiles 备份文件。");
+    throw new BackupValidationError(t("无法导入：这不是有效的 Workspace Tiles 备份文件。"));
   }
   if (value.format !== BACKUP_FORMAT) {
-    throw new BackupValidationError("无法导入：这不是 Workspace Tiles 创建的备份文件。");
+    throw new BackupValidationError(t("无法导入：这不是 Workspace Tiles 创建的备份文件。"));
   }
   if (!Number.isInteger(value.schemaVersion) || value.schemaVersion < 1) {
-    throw new BackupValidationError("无法导入：备份结构版本无效。");
+    throw new BackupValidationError(t("无法导入：备份结构版本无效。"));
   }
   if (value.schemaVersion > BACKUP_SCHEMA_VERSION) {
-    throw new BackupValidationError("无法导入：该备份由更新版本的 Workspace Tiles 创建。");
+    throw new BackupValidationError(t("无法导入：该备份由更新版本的 Workspace Tiles 创建。"));
   }
   if (typeof value.exportedAt !== "string" || Number.isNaN(Date.parse(value.exportedAt))) {
-    throw new BackupValidationError("无法导入：备份时间信息无效。");
+    throw new BackupValidationError(t("无法导入：备份时间信息无效。"));
   }
   if (typeof value.appVersion !== "string" || !value.appVersion.trim()) {
-    throw new BackupValidationError("无法导入：备份缺少插件版本信息。");
+    throw new BackupValidationError(t("无法导入：备份缺少插件版本信息。"));
   }
   if (!value.data || typeof value.data !== "object" || !Array.isArray(value.data.workspaces)) {
-    throw new BackupValidationError("无法导入：备份中的工作区数据无效。");
+    throw new BackupValidationError(t("无法导入：备份中的工作区数据无效。"));
   }
 
   const workspaceIds = new Set();
   const workspaces = value.data.workspaces.map((workspace) => {
     if (!workspace || typeof workspace !== "object" || Array.isArray(workspace)) {
-      throw new BackupValidationError("无法导入：备份中包含无效的工作区。");
+      throw new BackupValidationError(t("无法导入：备份中包含无效的工作区。"));
     }
     const workspaceId = typeof workspace.id === "string" ? workspace.id.trim() : "";
     if (!workspaceId || workspaceIds.has(workspaceId)) {
-      throw new BackupValidationError("无法导入：工作区 ID 缺失或重复。");
+      throw new BackupValidationError(t("无法导入：工作区 ID 缺失或重复。"));
     }
     if (typeof workspace.name !== "string" || !workspace.name.trim() || !Array.isArray(workspace.sites)) {
-      throw new BackupValidationError("无法导入：工作区名称或网站列表无效。");
+      throw new BackupValidationError(t("无法导入：工作区名称或网站列表无效。"));
     }
     workspaceIds.add(workspaceId);
 
     const siteIds = new Set();
     const sites = workspace.sites.map((site) => {
       if (!site || typeof site !== "object" || Array.isArray(site)) {
-        throw new BackupValidationError("无法导入：备份中包含无效的网站。");
+        throw new BackupValidationError(t("无法导入：备份中包含无效的网站。"));
       }
       const siteId = typeof site.id === "string" ? site.id.trim() : "";
       if (!siteId || siteIds.has(siteId)) {
-        throw new BackupValidationError("无法导入：网站 ID 缺失或重复。");
+        throw new BackupValidationError(t("无法导入：网站 ID 缺失或重复。"));
       }
       if (typeof site.name !== "string" || !site.name.trim()) {
-        throw new BackupValidationError("无法导入：网站名称无效。");
+        throw new BackupValidationError(t("无法导入：网站名称无效。"));
       }
       if (typeof site.url !== "string" || !site.url.trim() || !normalizeUrl(site.url)) {
-        throw new BackupValidationError("无法导入：备份中包含无效的网址。");
+        throw new BackupValidationError(t("无法导入：备份中包含无效的网址。"));
       }
       siteIds.add(siteId);
       return { id: siteId, name: site.name.trim(), url: normalizeUrl(site.url) };
@@ -412,16 +472,24 @@ function openImportConfirmation(parsedBackup) {
   const currentWorkspaceCount = state.workspaces.length;
   const currentSiteCount = state.workspaces.reduce((total, workspace) => total + workspace.sites.length, 0);
   const description = currentWorkspaceCount || currentSiteCount
-    ? `备份包含 ${parsedBackup.workspaceCount} 个工作区和 ${parsedBackup.siteCount} 个网站。导入后，当前的 ${currentWorkspaceCount} 个工作区和 ${currentSiteCount} 个网站将被完整替换。此操作不可撤销。`
-    : `备份包含 ${parsedBackup.workspaceCount} 个工作区和 ${parsedBackup.siteCount} 个网站。导入后将使用这些数据恢复 Workspace Tiles。此操作不可撤销。`;
+    ? t("backupReplace", {
+      backupWorkspaces: parsedBackup.workspaceCount,
+      backupSites: parsedBackup.siteCount,
+      currentWorkspaces: currentWorkspaceCount,
+      currentSites: currentSiteCount,
+    })
+    : t("backupRestore", {
+      backupWorkspaces: parsedBackup.workspaceCount,
+      backupSites: parsedBackup.siteCount,
+    });
 
   const managementButton = document.getElementById("managementButton");
   openDestructiveModal({
-    title: "导入并替换当前数据？",
+    title: t("导入并替换当前数据？"),
     description,
-    actionLabel: "导入并替换",
-    loadingText: "正在导入",
-    errorMessage: "导入失败，当前数据未更改",
+    actionLabel: t("导入并替换"),
+    loadingText: t("正在导入"),
+    errorMessage: t("导入失败，当前数据未更改"),
     onCancel: () => openManagementPanel(managementButton, "import"),
     onConfirm: async () => {
       const previousState = state;
@@ -437,7 +505,7 @@ function openImportConfirmation(parsedBackup) {
       render();
       managementButton?.focus();
     },
-    successMessage: "数据已恢复",
+    successMessage: t("数据已恢复"),
     returnFocus: managementButton,
   });
 }
@@ -499,7 +567,7 @@ function normalizeState(value) {
   return {
     workspaces: value.workspaces.map((workspace) => ({
       id: workspace.id || createId("workspace"),
-      name: String(workspace.name || "未命名工作区").trim() || "未命名工作区",
+      name: String(workspace.name || t("未命名工作区")).trim() || t("未命名工作区"),
       sites: Array.isArray(workspace.sites)
         ? workspace.sites.map((site) => normalizeSite(site)).filter(Boolean)
         : [],
@@ -532,9 +600,9 @@ function render() {
 
   if (isEmpty) {
     emptyPageState.append(createEmptyState({
-      title: "还没有工作区",
-      description: "创建工作区来组织常用网站，之后可以一键打开整组工具。",
-      actionLabel: "新建工作区",
+      title: t("还没有工作区"),
+      description: t("创建工作区来组织常用网站，之后可以一键打开整组工具。"),
+      actionLabel: t("新建工作区"),
       onAction: () => openWorkspaceForm(),
     }));
     return;
@@ -563,14 +631,14 @@ function renderWorkspaceTile(workspace) {
   const openAllButton = node.querySelector(".open-all-button");
   const moreButton = node.querySelector(".more-workspace-button");
   const actions = node.querySelector(".tile-actions");
-  const reorderHandle = createReorderHandle(`排序工作区：${workspace.name}`);
+  const reorderHandle = createReorderHandle(t("reorderWorkspace", { name: workspace.name }));
 
   node.dataset.reorderId = workspace.id;
   actions.prepend(reorderHandle);
   attachReorderHandle(reorderHandle, node, grid);
 
   title.textContent = workspace.name;
-  count.textContent = workspace.sites.length > 0 ? `${workspace.sites.length} 个网站` : "空工作区";
+  count.textContent = workspace.sites.length > 0 ? t("siteCount", { count: workspace.sites.length }) : t("空工作区");
   count.hidden = false;
   openAllButton.hidden = workspace.sites.length === 0;
 
@@ -643,7 +711,7 @@ function createAddSitePreviewButton(workspaceId) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "favicon-mini add-site-preview";
-  button.ariaLabel = "添加网站";
+  button.ariaLabel = t("添加网站");
   button.innerHTML = `
     <span class="favicon-visual add-site-preview-icon" aria-hidden="true">
       <span class="add-site-preview-frame">
@@ -653,7 +721,7 @@ function createAddSitePreviewButton(workspaceId) {
         </svg>
       </span>
     </span>
-    <span class="favicon-mini-name">添加网站</span>
+    <span class="favicon-mini-name">${t("添加网站")}</span>
   `;
   button.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -672,13 +740,13 @@ function wrapPreviewItem(item) {
 function renderPreviewPagination(workspaceId, currentPage, pageCount) {
   const pagination = document.createElement("nav");
   pagination.className = "preview-pagination";
-  pagination.setAttribute("aria-label", "网站预览分页");
+  pagination.setAttribute("aria-label", t("网站预览分页"));
 
   const previousButton = document.createElement("button");
   previousButton.type = "button";
   previousButton.className = "preview-pagination-button";
   previousButton.dataset.pageAction = "previous";
-  previousButton.ariaLabel = "上一页网站";
+  previousButton.ariaLabel = t("上一页网站");
   previousButton.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>`;
   previousButton.disabled = currentPage === 0;
   previousButton.addEventListener("click", () => {
@@ -694,7 +762,7 @@ function renderPreviewPagination(workspaceId, currentPage, pageCount) {
   nextButton.type = "button";
   nextButton.className = "preview-pagination-button";
   nextButton.dataset.pageAction = "next";
-  nextButton.ariaLabel = "下一页网站";
+  nextButton.ariaLabel = t("下一页网站");
   nextButton.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>`;
   nextButton.disabled = currentPage === pageCount - 1;
   nextButton.addEventListener("click", () => {
@@ -730,7 +798,7 @@ function renderAddWorkspaceTile() {
           <path d="M9.5 13h5"></path>
         </svg>
       </span>
-      <span>新建工作区</span>
+      <span>${t("新建工作区")}</span>
     </span>
   `;
   button.addEventListener("click", () => openWorkspaceForm());
@@ -784,11 +852,11 @@ function openWorkspaceDialog(workspaceId) {
   title.className = "dialog-title";
   title.innerHTML = `<h1></h1><p></p>`;
   title.querySelector("h1").textContent = workspace.name;
-  title.querySelector("p").textContent = `${workspace.sites.length} 个网站`;
+  title.querySelector("p").textContent = t("siteCount", { count: workspace.sites.length });
 
   const openButton = createOpenAllIconButton((event) => openAllMenu(event.currentTarget, workspace));
   const moreButton = createMoreIconButton((event) => openWorkspaceMoreMenu(event.currentTarget, workspace));
-  const closeButton = createIconButton("关闭", "M6 6l12 12M18 6 6 18", closeModal);
+  const closeButton = createIconButton(t("关闭"), "M6 6l12 12M18 6 6 18", closeModal);
 
   const header = dialog.querySelector(".dialog-header");
   header.append(title, openButton, moreButton, closeButton);
@@ -796,9 +864,9 @@ function openWorkspaceDialog(workspaceId) {
   const content = dialog.querySelector(".dialog-content");
   if (workspace.sites.length === 0) {
     content.append(createEmptyState({
-      title: "这个工作区还没有网站",
-      description: "添加第一个网站，之后就可以从新标签页快速打开。",
-      actionLabel: "添加网站",
+      title: t("这个工作区还没有网站"),
+      description: t("添加第一个网站，之后就可以从新标签页快速打开。"),
+      actionLabel: t("添加网站"),
       onAction: (event) => openSiteForm(workspace.id, null, event.currentTarget),
       compact: true,
     }));
@@ -861,11 +929,11 @@ function renderDialogSiteItem(workspaceId, site) {
 
   const actions = document.createElement("div");
   actions.className = "site-card-actions";
-  const reorderHandle = createReorderHandle(`排序网站：${site.name}`);
+  const reorderHandle = createReorderHandle(t("reorderSite", { name: site.name }));
   actions.append(
     reorderHandle,
-    createIconButton("编辑", "M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z", () => openSiteForm(workspaceId, site)),
-    createIconButton("删除", "M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6", () => deleteSite(workspaceId, site.id), true),
+    createIconButton(t("编辑"), "M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z", () => openSiteForm(workspaceId, site)),
+    createIconButton(t("删除"), "M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6", () => deleteSite(workspaceId, site.id), true),
   );
 
   wrapper.append(siteButton, actions);
@@ -1008,7 +1076,7 @@ function finishPointerReorder() {
   clearReorderSessionUi(session);
   const orderedIds = getCommitReorderIds(session);
   if (arraysEqual(orderedIds, session.fullIds)) {
-    announceReorder("顺序未改变");
+    announceReorder(t("顺序未改变"));
     session.handle.focus();
     return;
   }
@@ -1021,7 +1089,7 @@ function cancelPointerReorder() {
   pointerReorder = null;
   restoreReorderDom(session.container, session.config, session.fullIds);
   clearReorderSessionUi(session);
-  announceReorder("已取消排序");
+  announceReorder(t("已取消排序"));
   if (session.handle.isConnected) session.handle.focus();
 }
 
@@ -1090,7 +1158,7 @@ function beginKeyboardReorder(item, handle, container, config) {
   item.classList.add("is-keyboard-reordering");
   container.classList.add("is-reordering");
   handle.setAttribute("aria-pressed", "true");
-  announceReorder(`${getReorderPositionMessage(keyboardReorder)}。使用方向键移动，回车或空格保存，Escape 取消`);
+  announceReorder(t("reorderInstructionsActive", { positionMessage: getReorderPositionMessage(keyboardReorder) }));
 }
 
 function finishKeyboardReorder() {
@@ -1100,7 +1168,7 @@ function finishKeyboardReorder() {
   clearReorderSessionUi(session);
   const orderedIds = getCommitReorderIds(session);
   if (arraysEqual(orderedIds, session.fullIds)) {
-    announceReorder("顺序未改变");
+    announceReorder(t("顺序未改变"));
     session.handle.focus();
     return;
   }
@@ -1113,7 +1181,7 @@ function cancelKeyboardReorder() {
   keyboardReorder = null;
   restoreReorderDom(session.container, session.config, session.fullIds);
   clearReorderSessionUi(session);
-  announceReorder("已取消排序");
+  announceReorder(t("已取消排序"));
   if (session.handle.isConnected) session.handle.focus();
 }
 
@@ -1167,8 +1235,7 @@ function restoreReorderDom(container, config, orderedIds) {
 function getReorderPositionMessage(session) {
   const items = getReorderItems(session.container, session.config);
   const position = items.indexOf(session.item) + 1;
-  const noun = session.config.kind === "workspace" ? "个工作区" : "个网站";
-  return `已移动到第 ${position} 位，共 ${items.length} ${noun}`;
+  return t("reorderPosition", { position, count: items.length, kind: session.config.kind });
 }
 
 function autoScrollReorderContainer(event, scrollContainer) {
@@ -1196,17 +1263,17 @@ async function saveReorder(session, orderedIds) {
   try {
     await session.config.commit(orderedIds);
     render();
-    announceReorder("排序已保存");
+    announceReorder(t("排序已保存"));
     focusReorderHandle(session.config.kind, session.itemId);
   } catch (error) {
     if (error?.code === "WORKSPACE_NOT_FOUND") {
       closeModal({ restoreFocus: false });
       render();
-      showToast("工作区已不存在。", "error");
+      showToast(t("工作区已不存在。"), "error");
     } else {
       restoreReorderDom(session.container, session.config, session.fullIds);
-      showToast("无法保存排序。请重试。", "error");
-      announceReorder("无法保存排序，已恢复原顺序");
+      showToast(t("无法保存排序。请重试。"), "error");
+      announceReorder(t("无法保存排序，已恢复原顺序"));
       if (session.handle.isConnected) requestAnimationFrame(() => session.handle.focus());
     }
   } finally {
@@ -1315,9 +1382,9 @@ function openWorkspaceForm(workspace = null, returnFocus = null) {
   const isEditing = Boolean(workspace);
   const dialog = createDialog("small");
   const header = dialog.querySelector(".dialog-header");
-  header.append(createDialogTitle(isEditing ? "重命名工作区" : "新建工作区"));
+  header.append(createDialogTitle(isEditing ? t("重命名工作区") : t("新建工作区")));
   if (!isEditing) {
-    header.append(createIconButton("关闭", "M6 6l12 12M18 6 6 18", closeModal));
+    header.append(createIconButton(t("关闭"), "M6 6l12 12M18 6 6 18", closeModal));
   }
   let bookmarkTree = [];
   let selectedBookmarkIds = new Set();
@@ -1329,7 +1396,7 @@ function openWorkspaceForm(workspace = null, returnFocus = null) {
   form.noValidate = true;
   form.innerHTML = `
     <div class="field">
-      <label for="workspaceName">工作区名称</label>
+      <label for="workspaceName">${t("工作区名称")}</label>
       <input id="workspaceName" name="name" autocomplete="off" required maxlength="60" aria-describedby="workspaceNameError">
       <p class="field-error" id="workspaceNameError" role="status" hidden></p>
     </div>
@@ -1338,7 +1405,7 @@ function openWorkspaceForm(workspace = null, returnFocus = null) {
   const workspaceNameInput = form.elements.name;
   const workspaceNameError = form.querySelector("#workspaceNameError");
   const validateWorkspaceName = () => {
-    const message = workspaceNameInput.value.trim() ? "" : "工作区名称不能为空。";
+    const message = workspaceNameInput.value.trim() ? "" : t("工作区名称不能为空。");
     setFieldError(workspaceNameInput, workspaceNameError, message);
     return !message;
   };
@@ -1353,19 +1420,19 @@ function openWorkspaceForm(workspace = null, returnFocus = null) {
     const importBlock = document.createElement("div");
     importBlock.className = "bookmark-import-block";
     importBlock.innerHTML = `
-      <div class="bookmark-import-heading">从书签添加</div>
+      <div class="bookmark-import-heading">${t("从书签添加")}</div>
       <div class="bookmark-import-selection">
-        <span class="bookmark-import-summary">选择文件夹或网站</span>
+        <span class="bookmark-import-summary">${t("选择文件夹或网站")}</span>
         <span class="bookmark-select-button-slot"></span>
       </div>
-      <p class="bookmark-import-help">所选文件夹中的网站将被平铺添加，不会保留原有文件夹结构。</p>
+      <p class="bookmark-import-help">${t("所选文件夹中的网站将被平铺添加，不会保留原有文件夹结构。")}</p>
       <p class="form-message error" role="status" hidden></p>
     `;
 
-    const selectButton = createButton("选择书签", null, {
+    const selectButton = createButton(t("选择书签"), null, {
       variant: "secondary",
       size: "small",
-      loadingText: "读取中",
+      loadingText: t("读取中"),
     });
     selectButton.classList.add("bookmark-select-button");
     importBlock.querySelector(".bookmark-select-button-slot").replaceWith(selectButton);
@@ -1374,9 +1441,9 @@ function openWorkspaceForm(workspace = null, returnFocus = null) {
 
     const updateImportSummary = () => {
       const count = selectedBookmarkIds.size;
-      summary.textContent = count > 0 ? `已选择 ${count} 个网站` : "选择文件夹或网站";
+      summary.textContent = count > 0 ? t("selectedSiteCount", { count }) : t("选择文件夹或网站");
       summary.classList.toggle("has-selection", count > 0);
-      const buttonLabel = count > 0 ? "修改" : "选择书签";
+      const buttonLabel = count > 0 ? t("修改") : t("选择书签");
       selectButton.dataset.defaultLabel = buttonLabel;
       selectButton.querySelector(".button-label").textContent = buttonLabel;
       selectButton.classList.toggle("is-compact", count > 0);
@@ -1389,7 +1456,7 @@ function openWorkspaceForm(workspace = null, returnFocus = null) {
       try {
         const granted = await requestBookmarksPermission();
         if (!granted) {
-          error.textContent = "未获得书签访问权限，你仍可手动添加网站。";
+          error.textContent = t("未获得书签访问权限，你仍可手动添加网站。");
           error.hidden = false;
           return;
         }
@@ -1409,7 +1476,7 @@ function openWorkspaceForm(workspace = null, returnFocus = null) {
           },
         });
       } catch {
-        error.textContent = "无法读取 Chrome 书签，请稍后重试。";
+        error.textContent = t("无法读取 Chrome 书签，请稍后重试。");
         error.hidden = false;
       } finally {
         setButtonLoading(selectButton, false);
@@ -1421,19 +1488,19 @@ function openWorkspaceForm(workspace = null, returnFocus = null) {
     const tabImportBlock = document.createElement("div");
     tabImportBlock.className = "bookmark-import-block";
     tabImportBlock.innerHTML = `
-      <div class="bookmark-import-heading">从打开的标签页添加</div>
+      <div class="bookmark-import-heading">${t("从打开的标签页添加")}</div>
       <div class="bookmark-import-selection">
-        <span class="bookmark-import-summary">选择当前窗口中的标签页</span>
+        <span class="bookmark-import-summary">${t("选择当前窗口中的标签页")}</span>
         <span class="tab-select-button-slot"></span>
       </div>
-      <p class="bookmark-import-help">选择当前窗口中需要保存的网站。</p>
+      <p class="bookmark-import-help">${t("选择当前窗口中需要保存的网站。")}</p>
       <p class="form-message error" role="status" hidden></p>
     `;
 
-    const tabSelectButton = createButton("选择标签页", null, {
+    const tabSelectButton = createButton(t("选择标签页"), null, {
       variant: "secondary",
       size: "small",
-      loadingText: "读取中",
+      loadingText: t("读取中"),
     });
     tabSelectButton.classList.add("bookmark-select-button");
     tabImportBlock.querySelector(".tab-select-button-slot").replaceWith(tabSelectButton);
@@ -1442,9 +1509,9 @@ function openWorkspaceForm(workspace = null, returnFocus = null) {
 
     const updateTabImportSummary = () => {
       const count = selectedOpenTabKeys.size;
-      tabSummary.textContent = count > 0 ? `已选择 ${count} 个标签页` : "选择当前窗口中的标签页";
+      tabSummary.textContent = count > 0 ? t("selectedTabCount", { count }) : t("选择当前窗口中的标签页");
       tabSummary.classList.toggle("has-selection", count > 0);
-      const buttonLabel = count > 0 ? "重新选择" : "选择标签页";
+      const buttonLabel = count > 0 ? t("重新选择") : t("选择标签页");
       tabSelectButton.dataset.defaultLabel = buttonLabel;
       tabSelectButton.querySelector(".button-label").textContent = buttonLabel;
       tabSelectButton.classList.toggle("is-compact", count > 0);
@@ -1457,7 +1524,7 @@ function openWorkspaceForm(workspace = null, returnFocus = null) {
       try {
         const granted = await requestTabsPermission();
         if (!granted) {
-          tabError.textContent = "未获得标签页访问权限，你仍可手动添加网站或从书签添加。";
+          tabError.textContent = t("未获得标签页访问权限，你仍可手动添加网站或从书签添加。");
           tabError.hidden = false;
           return;
         }
@@ -1477,7 +1544,7 @@ function openWorkspaceForm(workspace = null, returnFocus = null) {
           },
         });
       } catch {
-        tabError.textContent = "无法读取当前窗口的标签页，请稍后重试。";
+        tabError.textContent = t("无法读取当前窗口的标签页，请稍后重试。");
         tabError.hidden = false;
       } finally {
         setButtonLoading(tabSelectButton, false);
@@ -1489,13 +1556,13 @@ function openWorkspaceForm(workspace = null, returnFocus = null) {
 
   dialog.querySelector(".dialog-content").append(form);
   const footer = dialog.querySelector(".dialog-footer");
-  const submitButton = createButton(isEditing ? "保存" : "创建", () => form.requestSubmit(), {
+  const submitButton = createButton(isEditing ? t("保存") : t("创建"), () => form.requestSubmit(), {
     variant: "primary",
-    loadingText: isEditing ? "保存中" : "创建中",
+    loadingText: isEditing ? t("保存中") : t("创建中"),
   });
   if (isEditing) {
     footer.append(
-      createButton("取消", closeModal),
+      createButton(t("取消"), closeModal),
       submitButton,
     );
   } else {
@@ -1528,14 +1595,14 @@ function openWorkspaceForm(workspace = null, returnFocus = null) {
       await saveState();
       closeModal();
       render();
-      showToast(isEditing ? "工作区已重命名" : "工作区已创建", "success");
+      showToast(isEditing ? t("工作区已重命名") : t("工作区已创建"), "success");
     } catch {
       if (workspace) {
         workspace.name = previousName;
       } else {
         state.workspaces = state.workspaces.filter((item) => item.id !== newWorkspaceId);
       }
-      showToast("无法保存工作区。请重试。", "error");
+      showToast(t("无法保存工作区。请重试。"), "error");
     } finally {
       setButtonLoading(submitButton, false);
     }
@@ -1547,13 +1614,13 @@ function openWorkspaceForm(workspace = null, returnFocus = null) {
 function openBookmarkPicker(tree, confirmedSelection, {
   onCancel,
   onConfirm,
-  confirmLabel = "确认选择",
-  loadingText = "处理中",
+  confirmLabel = t("确认选择"),
+  loadingText = t("处理中"),
   requireSelection = false,
 }) {
   const draftSelection = new Set(confirmedSelection);
   const expandedFolderIds = new Set();
-  const picker = createSelectionPicker("选择书签", "Chrome 书签", onCancel);
+  const picker = createSelectionPicker(t("选择书签"), t("Chrome 书签"), onCancel);
   const { dialog, dialogTitle, choiceContainer: treeContainer } = picker;
   treeContainer.setAttribute("role", "tree");
 
@@ -1577,8 +1644,8 @@ function openBookmarkPicker(tree, confirmedSelection, {
 
     if (!displayNodes.length) {
       treeContainer.append(createEmptyState({
-        title: "没有可选择的书签",
-        description: "请先在 Chrome 中创建书签，然后再返回这里选择。",
+        title: t("没有可选择的书签"),
+        description: t("请先在 Chrome 中创建书签，然后再返回这里选择。"),
         compact: true,
       }));
     } else {
@@ -1587,7 +1654,7 @@ function openBookmarkPicker(tree, confirmedSelection, {
       });
     }
 
-    dialogTitle.querySelector("h1").textContent = `选择书签（${draftSelection.size}）`;
+    dialogTitle.querySelector("h1").textContent = t("selectBookmarksTitle", { count: draftSelection.size });
     confirmButton.disabled = requireSelection && draftSelection.size === 0;
     treeContainer.scrollTop = scrollTop;
   };
@@ -1599,7 +1666,7 @@ function openBookmarkPicker(tree, confirmedSelection, {
 function createSelectionPicker(title, legend, onCancel) {
   const dialog = createDialog("bookmark-picker-dialog");
   const dialogTitle = createDialogTitle(`${title}（0）`);
-  const closeButton = createIconButton("关闭", "M6 6l12 12M18 6 6 18", onCancel);
+  const closeButton = createIconButton(t("关闭"), "M6 6l12 12M18 6 6 18", onCancel);
   dialog.querySelector(".dialog-header").append(dialogTitle, closeButton);
 
   const content = dialog.querySelector(".dialog-content");
@@ -1620,12 +1687,12 @@ function createSelectionPicker(title, legend, onCancel) {
 function openTabPicker(tabs, confirmedSelection, {
   onCancel,
   onConfirm,
-  confirmLabel = "确认选择",
-  loadingText = "处理中",
+  confirmLabel = t("确认选择"),
+  loadingText = t("处理中"),
   requireSelection = false,
 }) {
   const draftSelection = new Set(confirmedSelection);
-  const picker = createSelectionPicker("选择标签页", "当前窗口标签页", onCancel);
+  const picker = createSelectionPicker(t("选择标签页"), t("当前窗口标签页"), onCancel);
   const { dialog, dialogTitle, choiceContainer } = picker;
   choiceContainer.classList.add("tab-choice-list");
 
@@ -1651,7 +1718,7 @@ function openTabPicker(tabs, confirmedSelection, {
       choiceContainer.append(renderTabChoice(tab, draftSelection, renderChoices));
     });
 
-    dialogTitle.querySelector("h1").textContent = `选择标签页（${draftSelection.size}）`;
+    dialogTitle.querySelector("h1").textContent = t("selectTabsTitle", { count: draftSelection.size });
     confirmButton.disabled = requireSelection && draftSelection.size === 0;
     choiceContainer.scrollTop = scrollTop;
   };
@@ -1674,8 +1741,8 @@ function renderTabSelectAll(tabs, selection, rerender) {
   checkbox.checked = allSelected;
   checkbox.indeterminate = selectedCount > 0 && !allSelected;
   checkbox.disabled = selectableTabs.length === 0;
-  checkbox.ariaLabel = allSelected ? "取消全选标签页" : "全选标签页";
-  if (checkbox.disabled) checkbox.title = "没有可保存的标签页";
+  checkbox.ariaLabel = allSelected ? t("取消全选标签页") : t("全选标签页");
+  if (checkbox.disabled) checkbox.title = t("没有可保存的标签页");
   checkbox.addEventListener("change", () => {
     selectableTabs.forEach((tab) => {
       if (checkbox.checked) selection.add(tab.key);
@@ -1687,14 +1754,14 @@ function renderTabSelectAll(tabs, selection, rerender) {
   const choiceLabel = document.createElement("label");
   choiceLabel.className = "bookmark-choice-label tab-select-all-label";
   choiceLabel.htmlFor = checkbox.id;
-  choiceLabel.title = checkbox.disabled ? "没有可保存的标签页" : "选择或取消选择全部可保存的标签页";
+  choiceLabel.title = checkbox.disabled ? t("没有可保存的标签页") : t("选择或取消选择全部可保存的标签页");
 
   const label = document.createElement("span");
   label.className = "bookmark-node-label";
-  label.textContent = "全选";
+  label.textContent = t("全选");
   const count = document.createElement("span");
   count.className = "tab-select-all-count";
-  count.textContent = `共有 ${selectableTabs.length} 个`;
+  count.textContent = t("totalTabs", { count: selectableTabs.length });
   choiceLabel.append(label, count);
   row.append(checkbox, choiceLabel);
   return row;
@@ -1710,9 +1777,9 @@ function renderTabChoice(tab, selection, rerender) {
   checkbox.checked = selection.has(tab.key);
   checkbox.disabled = !tab.url;
   checkbox.ariaLabel = tab.url
-    ? `选择标签页 ${tab.title}`
-    : `标签页 ${tab.title} 暂时无法保存`;
-  if (checkbox.disabled) checkbox.title = "此标签页暂时无法保存";
+    ? t("selectTab", { title: tab.title })
+    : t("unavailableTab", { title: tab.title });
+  if (checkbox.disabled) checkbox.title = t("此标签页暂时无法保存");
   checkbox.addEventListener("change", () => {
     if (checkbox.checked) selection.add(tab.key);
     else selection.delete(tab.key);
@@ -1722,14 +1789,14 @@ function renderTabChoice(tab, selection, rerender) {
   const choiceLabel = document.createElement("label");
   choiceLabel.className = "bookmark-choice-label tab-choice-label";
   choiceLabel.htmlFor = checkbox.id;
-  choiceLabel.title = tab.url || "此标签页暂时无法保存";
+  choiceLabel.title = tab.url || t("此标签页暂时无法保存");
 
   const title = document.createElement("span");
   title.className = "bookmark-node-label";
   title.textContent = tab.title;
   const detail = document.createElement("span");
   detail.className = "tab-choice-detail";
-  detail.textContent = tab.url || "此标签页暂时无法保存";
+  detail.textContent = tab.url || t("此标签页暂时无法保存");
   choiceLabel.append(title, detail);
   row.append(checkbox, choiceLabel);
   return row;
@@ -1750,7 +1817,7 @@ function renderBookmarkNode(node, depth, selection, expandedFolderIds, rerender)
   const disclosure = document.createElement("button");
   disclosure.type = "button";
   disclosure.className = "bookmark-disclosure";
-  disclosure.ariaLabel = expandedFolderIds.has(node.id) ? "折叠文件夹" : "展开文件夹";
+  disclosure.ariaLabel = expandedFolderIds.has(node.id) ? t("折叠文件夹") : t("展开文件夹");
   disclosure.innerHTML = isFolder
     ? `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>`
     : "";
@@ -1776,10 +1843,16 @@ function renderBookmarkNode(node, depth, selection, expandedFolderIds, rerender)
   checkbox.checked = descendantIds.length > 0 && selectedCount === descendantIds.length;
   checkbox.indeterminate = selectedCount > 0 && selectedCount < descendantIds.length;
   checkbox.disabled = descendantIds.length === 0;
-  const nodeName = node.title || node.url || "未命名";
-  const partialDescription = checkbox.indeterminate ? `，已选择 ${selectedCount}/${descendantIds.length}` : "";
-  checkbox.ariaLabel = `选择${isFolder ? "文件夹" : "网站"} ${nodeName}${partialDescription}`;
-  if (checkbox.disabled) checkbox.title = "此文件夹没有网站";
+  const nodeName = node.title || node.url || t("未命名");
+  const partialDescription = checkbox.indeterminate
+    ? t("partialSelection", { selected: selectedCount, total: descendantIds.length })
+    : "";
+  checkbox.ariaLabel = t("selectBookmarkNode", {
+    kind: isFolder ? "folder" : "site",
+    name: nodeName,
+    detail: partialDescription,
+  });
+  if (checkbox.disabled) checkbox.title = t("此文件夹没有网站");
   checkbox.addEventListener("change", () => {
     const shouldSelect = checkbox.checked;
     descendantIds.forEach((id) => {
@@ -1792,7 +1865,7 @@ function renderBookmarkNode(node, depth, selection, expandedFolderIds, rerender)
   const choiceLabel = document.createElement("label");
   choiceLabel.className = "bookmark-choice-label";
   choiceLabel.htmlFor = checkbox.id;
-  choiceLabel.title = checkbox.disabled ? "此文件夹没有网站" : (node.url || node.title || "");
+  choiceLabel.title = checkbox.disabled ? t("此文件夹没有网站") : (node.url || node.title || "");
 
   const label = document.createElement("span");
   label.className = "bookmark-node-label";
@@ -1918,12 +1991,12 @@ function loadCurrentWindowTabs() {
 function normalizeOpenTab(tab) {
   const url = String(tab?.pendingUrl || tab?.url || "").trim();
   const pageTitle = String(tab?.title || "").trim();
-  const title = pageTitle || url || "未命名网站";
+  const title = pageTitle || url || t("未命名网站");
   const tabId = tab?.id ?? createId("unavailable-tab");
   return {
     key: JSON.stringify([tabId, url]),
     title,
-    name: pageTitle || getSiteFallbackName(url) || "未命名网站",
+    name: pageTitle || getSiteFallbackName(url) || t("未命名网站"),
     url,
   };
 }
@@ -1975,9 +2048,9 @@ function openSiteForm(workspaceId, site = null, returnFocus = null) {
     if (trigger?.isConnected) requestAnimationFrame(() => trigger.focus());
   };
   const header = dialog.querySelector(".dialog-header");
-  header.append(createDialogTitle(isEditing ? "编辑网站" : "添加网站"));
+  header.append(createDialogTitle(isEditing ? t("编辑网站") : t("添加网站")));
   if (!isEditing) {
-    header.append(createIconButton("关闭", "M6 6l12 12M18 6 6 18", cancelSiteForm));
+    header.append(createIconButton(t("关闭"), "M6 6l12 12M18 6 6 18", cancelSiteForm));
   }
 
   const form = document.createElement("form");
@@ -1985,7 +2058,7 @@ function openSiteForm(workspaceId, site = null, returnFocus = null) {
   form.noValidate = true;
   form.innerHTML = `
     <div class="field">
-      <label for="siteName">名称</label>
+      <label for="siteName">${t("名称")}</label>
       <input id="siteName" name="name" autocomplete="off" maxlength="80">
     </div>
     <div class="field">
@@ -2007,11 +2080,11 @@ function openSiteForm(workspaceId, site = null, returnFocus = null) {
     if (rawUrl) {
       message = getUrlValidationError(rawUrl);
     } else if (!isEditing && rawName) {
-      message = "填写名称后还需要填写 URL。";
+      message = t("填写名称后还需要填写 URL。");
     } else if (!isEditing && !hasImportedSites) {
-      message = "请输入 URL，或从书签、标签页选择网站。";
+      message = t("请输入 URL，或从书签、标签页选择网站。");
     } else if (isEditing) {
-      message = "URL 不能为空。";
+      message = t("URL 不能为空。");
     }
     setFieldError(siteUrlInput, siteUrlError, message);
     return !message;
@@ -2051,18 +2124,18 @@ function openSiteForm(workspaceId, site = null, returnFocus = null) {
     const importBlock = document.createElement("div");
     importBlock.className = "bookmark-import-block";
     importBlock.innerHTML = `
-      <div class="bookmark-import-heading">从书签添加</div>
+      <div class="bookmark-import-heading">${t("从书签添加")}</div>
       <div class="bookmark-import-selection">
-        <span class="bookmark-import-summary">选择文件夹或网站</span>
+        <span class="bookmark-import-summary">${t("选择文件夹或网站")}</span>
         <span class="bookmark-select-button-slot"></span>
       </div>
-      <p class="bookmark-import-help">所选文件夹中的网站将被平铺添加，不会保留原有文件夹结构。</p>
+      <p class="bookmark-import-help">${t("所选文件夹中的网站将被平铺添加，不会保留原有文件夹结构。")}</p>
       <p class="form-message error" role="status" hidden></p>
     `;
-    const bookmarkSelectButton = createButton("选择书签", null, {
+    const bookmarkSelectButton = createButton(t("选择书签"), null, {
       variant: "secondary",
       size: "small",
-      loadingText: "读取中",
+      loadingText: t("读取中"),
     });
     bookmarkSelectButton.classList.add("bookmark-select-button");
     importBlock.querySelector(".bookmark-select-button-slot").replaceWith(bookmarkSelectButton);
@@ -2071,9 +2144,9 @@ function openSiteForm(workspaceId, site = null, returnFocus = null) {
 
     const updateBookmarkSummary = () => {
       const count = selectedBookmarkIds.size;
-      bookmarkSummary.textContent = count > 0 ? `已选择 ${count} 个网站` : "选择文件夹或网站";
+      bookmarkSummary.textContent = count > 0 ? t("selectedSiteCount", { count }) : t("选择文件夹或网站");
       bookmarkSummary.classList.toggle("has-selection", count > 0);
-      const label = count > 0 ? "修改" : "选择书签";
+      const label = count > 0 ? t("修改") : t("选择书签");
       bookmarkSelectButton.dataset.defaultLabel = label;
       bookmarkSelectButton.querySelector(".button-label").textContent = label;
       bookmarkSelectButton.classList.toggle("is-compact", count > 0);
@@ -2086,7 +2159,7 @@ function openSiteForm(workspaceId, site = null, returnFocus = null) {
       try {
         const granted = await requestBookmarksPermission();
         if (!granted) {
-          bookmarkError.textContent = "未获得书签访问权限，你仍可手动添加网站。";
+          bookmarkError.textContent = t("未获得书签访问权限，你仍可手动添加网站。");
           bookmarkError.hidden = false;
           return;
         }
@@ -2105,7 +2178,7 @@ function openSiteForm(workspaceId, site = null, returnFocus = null) {
           },
         });
       } catch {
-        bookmarkError.textContent = "无法读取 Chrome 书签，请稍后重试。";
+        bookmarkError.textContent = t("无法读取 Chrome 书签，请稍后重试。");
         bookmarkError.hidden = false;
       } finally {
         setButtonLoading(bookmarkSelectButton, false);
@@ -2116,18 +2189,18 @@ function openSiteForm(workspaceId, site = null, returnFocus = null) {
     const tabImportBlock = document.createElement("div");
     tabImportBlock.className = "bookmark-import-block";
     tabImportBlock.innerHTML = `
-      <div class="bookmark-import-heading">从打开的标签页添加</div>
+      <div class="bookmark-import-heading">${t("从打开的标签页添加")}</div>
       <div class="bookmark-import-selection">
-        <span class="bookmark-import-summary">选择当前窗口中的标签页</span>
+        <span class="bookmark-import-summary">${t("选择当前窗口中的标签页")}</span>
         <span class="tab-select-button-slot"></span>
       </div>
-      <p class="bookmark-import-help">选择当前窗口中需要保存的网站。</p>
+      <p class="bookmark-import-help">${t("选择当前窗口中需要保存的网站。")}</p>
       <p class="form-message error" role="status" hidden></p>
     `;
-    const tabSelectButton = createButton("选择标签页", null, {
+    const tabSelectButton = createButton(t("选择标签页"), null, {
       variant: "secondary",
       size: "small",
-      loadingText: "读取中",
+      loadingText: t("读取中"),
     });
     tabSelectButton.classList.add("bookmark-select-button");
     tabImportBlock.querySelector(".tab-select-button-slot").replaceWith(tabSelectButton);
@@ -2136,9 +2209,9 @@ function openSiteForm(workspaceId, site = null, returnFocus = null) {
 
     const updateTabSummary = () => {
       const count = selectedOpenTabKeys.size;
-      tabSummary.textContent = count > 0 ? `已选择 ${count} 个标签页` : "选择当前窗口中的标签页";
+      tabSummary.textContent = count > 0 ? t("selectedTabCount", { count }) : t("选择当前窗口中的标签页");
       tabSummary.classList.toggle("has-selection", count > 0);
-      const label = count > 0 ? "重新选择" : "选择标签页";
+      const label = count > 0 ? t("重新选择") : t("选择标签页");
       tabSelectButton.dataset.defaultLabel = label;
       tabSelectButton.querySelector(".button-label").textContent = label;
       tabSelectButton.classList.toggle("is-compact", count > 0);
@@ -2151,7 +2224,7 @@ function openSiteForm(workspaceId, site = null, returnFocus = null) {
       try {
         const granted = await requestTabsPermission();
         if (!granted) {
-          tabError.textContent = "未获得标签页访问权限，你仍可手动添加网站或从书签添加。";
+          tabError.textContent = t("未获得标签页访问权限，你仍可手动添加网站或从书签添加。");
           tabError.hidden = false;
           return;
         }
@@ -2170,7 +2243,7 @@ function openSiteForm(workspaceId, site = null, returnFocus = null) {
           },
         });
       } catch {
-        tabError.textContent = "无法读取当前窗口的标签页，请稍后重试。";
+        tabError.textContent = t("无法读取当前窗口的标签页，请稍后重试。");
         tabError.hidden = false;
       } finally {
         setButtonLoading(tabSelectButton, false);
@@ -2180,13 +2253,13 @@ function openSiteForm(workspaceId, site = null, returnFocus = null) {
   }
 
   dialog.querySelector(".dialog-content").append(form);
-  submitButton = createButton(isEditing ? "保存" : "添加", () => form.requestSubmit(), {
+  submitButton = createButton(isEditing ? t("保存") : t("添加"), () => form.requestSubmit(), {
     variant: "primary",
-    loadingText: isEditing ? "保存中" : "添加中",
+    loadingText: isEditing ? t("保存中") : t("添加中"),
   });
   if (isEditing) {
     dialog.querySelector(".dialog-footer").append(
-      createButton("取消", cancelSiteForm),
+      createButton(t("取消"), cancelSiteForm),
       submitButton,
     );
   } else {
@@ -2233,7 +2306,7 @@ function openSiteForm(workspaceId, site = null, returnFocus = null) {
       render();
       openWorkspaceDialog(workspaceId);
       showToast(
-        isEditing ? "网站已更新" : (addedCount === 1 ? "网站已添加" : `已添加 ${addedCount} 个网站`),
+        isEditing ? t("网站已更新") : (addedCount === 1 ? t("网站已添加") : t("addedSiteCount", { count: addedCount })),
         "success",
       );
     } catch (error) {
@@ -2244,10 +2317,10 @@ function openSiteForm(workspaceId, site = null, returnFocus = null) {
       if (!site && error?.code === "WORKSPACE_NOT_FOUND") {
         closeModal({ restoreFocus: false });
         render();
-        showToast("工作区已不存在。", "error");
+        showToast(t("工作区已不存在。"), "error");
         return;
       }
-      showToast(isEditing ? "无法保存网站。请重试。" : "无法添加网站。请重试。", "error");
+      showToast(isEditing ? t("无法保存网站。请重试。") : t("无法添加网站。请重试。"), "error");
     } finally {
       if (dialog.isConnected) {
         setButtonLoading(submitButton, false);
@@ -2272,7 +2345,7 @@ function openDestructiveModal({
   successMessage,
   onSuccess,
   onCancel = null,
-  errorMessage = "无法完成删除。请重试。",
+  errorMessage = t("无法完成删除。请重试。"),
   returnFocus = null,
 }) {
   const parentModal = currentModal;
@@ -2296,7 +2369,7 @@ function openDestructiveModal({
       onCancel?.();
     }
   };
-  const cancelButton = createButton("取消", cancel);
+  const cancelButton = createButton(t("取消"), cancel);
   cancelButton.dataset.autofocus = "true";
   const confirmButton = createButton(actionLabel, null, {
     variant: "danger",
@@ -2332,12 +2405,11 @@ function deleteWorkspace(workspaceId, returnFocus = null) {
   const workspace = getWorkspace(workspaceId);
   if (!workspace) return;
 
-  const siteCountText = workspace.sites.length ? `及其中的 ${workspace.sites.length} 个网站` : "";
   openDestructiveModal({
-    title: "删除工作区",
-    description: `将删除“${workspace.name}”${siteCountText}。此操作无法撤销。`,
-    actionLabel: "删除工作区",
-    loadingText: "删除中",
+    title: t("删除工作区"),
+    description: t("deleteWorkspace", { name: workspace.name, count: workspace.sites.length }),
+    actionLabel: t("删除工作区"),
+    loadingText: t("删除中"),
     onConfirm: async () => {
       const previousWorkspaces = state.workspaces;
       state.workspaces = state.workspaces.filter((item) => item.id !== workspaceId);
@@ -2349,7 +2421,7 @@ function deleteWorkspace(workspaceId, returnFocus = null) {
       }
     },
     onSuccess: render,
-    successMessage: "工作区已删除",
+    successMessage: t("工作区已删除"),
     returnFocus,
   });
 }
@@ -2360,10 +2432,10 @@ function deleteSite(workspaceId, siteId) {
   if (!workspace || !site) return;
 
   openDestructiveModal({
-    title: "删除网站",
-    description: `将从该工作区中删除“${site.name}”。此操作无法撤销。`,
-    actionLabel: "删除网站",
-    loadingText: "删除中",
+    title: t("删除网站"),
+    description: t("deleteSite", { name: site.name }),
+    actionLabel: t("删除网站"),
+    loadingText: t("删除中"),
     onConfirm: async () => {
       const previousSites = workspace.sites;
       workspace.sites = workspace.sites.filter((item) => item.id !== siteId);
@@ -2378,7 +2450,7 @@ function deleteSite(workspaceId, siteId) {
       render();
       openWorkspaceDialog(workspaceId);
     },
-    successMessage: "网站已删除",
+    successMessage: t("网站已删除"),
   });
 }
 
@@ -2429,8 +2501,8 @@ function openAllMenu(anchor, workspace) {
   menu.className = "open-menu";
   menu.setAttribute("role", "menu");
   menu.innerHTML = `
-    <button type="button" role="menuitem" data-action="current">当前窗口打开</button>
-    <button type="button" role="menuitem" data-action="new">新窗口打开</button>
+    <button type="button" role="menuitem" data-action="current">${t("当前窗口打开")}</button>
+    <button type="button" role="menuitem" data-action="new">${t("新窗口打开")}</button>
   `;
 
   menu.style.top = `${Math.min(rect.bottom + 8, window.innerHeight - 96)}px`;
@@ -2459,8 +2531,8 @@ function openWorkspaceMoreMenu(anchor, workspace) {
   menu.className = "open-menu workspace-more-menu";
   menu.setAttribute("role", "menu");
   menu.innerHTML = `
-    <button type="button" role="menuitem" data-action="rename">重命名</button>
-    <button type="button" role="menuitem" data-action="delete" class="danger-menu-item">删除工作区</button>
+    <button type="button" role="menuitem" data-action="rename">${t("重命名")}</button>
+    <button type="button" role="menuitem" data-action="delete" class="danger-menu-item">${t("删除工作区")}</button>
   `;
 
   menu.style.top = `${Math.min(rect.bottom + 8, window.innerHeight - 96)}px`;
@@ -2516,7 +2588,7 @@ function closeMenu({ restoreFocus = true } = {}) {
 
 function openUrl(url) {
   if (isJavascriptUrl(url)) {
-    showToast("此书签工具需要在目标网页中使用");
+    showToast(t("此书签工具需要在目标网页中使用"));
     return;
   }
 
@@ -2563,7 +2635,7 @@ function openExternalUrl(url) {
 function openAllCurrentWindow(sites) {
   const openableSites = sites.filter((site) => !isJavascriptUrl(site.url));
   if (!openableSites.length) {
-    showToast("此工作区只包含需要在目标网页中使用的书签工具");
+    showToast(t("此工作区只包含需要在目标网页中使用的书签工具"));
     return;
   }
   openableSites.slice(1).forEach((site) => openUrlInNewTab(site.url));
@@ -2573,7 +2645,7 @@ function openAllCurrentWindow(sites) {
 function openAllNewWindow(sites) {
   const urls = sites.filter((site) => !isJavascriptUrl(site.url)).map((site) => site.url);
   if (!urls.length) {
-    showToast("此工作区只包含需要在目标网页中使用的书签工具");
+    showToast(t("此工作区只包含需要在目标网页中使用的书签工具"));
     return;
   }
   const chromeApi = getChromeApi();
@@ -2597,19 +2669,19 @@ function setFieldError(input, errorElement, message = "") {
 
 function getUrlValidationError(value) {
   const raw = String(value || "").trim();
-  if (!raw) return "URL 不能为空。";
+  if (!raw) return t("URL 不能为空。");
 
   const protocol = getUrlProtocol(raw);
   if (protocol === "http" || protocol === "https") {
     try {
       const parsed = new URL(raw);
-      return parsed.hostname ? "" : "URL 格式无效。";
+      return parsed.hostname ? "" : t("URL 格式无效。");
     } catch {
-      return "URL 格式无效。";
+      return t("URL 格式无效。");
     }
   }
 
-  return normalizeUrl(raw) ? "" : "URL 格式无效。";
+  return normalizeUrl(raw) ? "" : t("URL 格式无效。");
 }
 
 function showToast(message, type = "message", duration = 3600) {
@@ -2787,7 +2859,7 @@ function createDialogTitle(text) {
   return title;
 }
 
-function createButton(text, onClick, { variant = "secondary", size = "medium", loadingText = "处理中" } = {}) {
+function createButton(text, onClick, { variant = "secondary", size = "medium", loadingText = t("处理中") } = {}) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = `button ${variant} ${size}`;
@@ -2820,8 +2892,8 @@ function createOpenAllIconButton(onClick) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "icon-button";
-  button.title = "打开全部";
-  button.ariaLabel = "打开全部";
+  button.title = t("打开全部");
+  button.ariaLabel = t("打开全部");
   button.innerHTML = `
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M15 3h6v6"></path>
@@ -2840,8 +2912,8 @@ function createMoreIconButton(onClick) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "icon-button more-workspace-button";
-  button.title = "更多";
-  button.ariaLabel = "更多";
+  button.title = t("更多");
+  button.ariaLabel = t("更多");
   button.innerHTML = `
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="6" cy="12" r="1.7"></circle>
@@ -2896,7 +2968,7 @@ function getDomain(url) {
 }
 
 function getSiteFallbackName(url) {
-  return getDomain(url) || String(url || "").trim() || "未命名网站";
+  return getDomain(url) || String(url || "").trim() || t("未命名网站");
 }
 
 function getUrlProtocol(url) {
