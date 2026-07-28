@@ -1262,9 +1262,9 @@ button {
   z-index: 20;
 }
 
-.about-button {
+.management-button {
   position: fixed;
-  right: var(--space-6);
+  left: var(--space-6);
   bottom: var(--space-6);
   z-index: 21;
   width: 32px;
@@ -1274,26 +1274,83 @@ button {
   box-shadow: var(--shadow-small);
 }
 
-.about-popover {
+.management-panel {
   position: fixed;
-  right: var(--space-6);
+  left: var(--space-6);
   bottom: 64px;
   z-index: 21;
-  width: min(320px, calc(100vw - 48px));
-  padding: var(--space-5);
+  display: grid;
+  grid-template-columns: 136px minmax(0, 1fr);
+  width: min(460px, calc(100vw - 48px));
+  height: 300px;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-medium);
   background: var(--surface);
   box-shadow: var(--shadow-menu);
 }
 
-.about-popover h2 {
+.management-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-3);
+  border-right: 1px solid var(--border);
+  background: var(--surface-subtle);
+}
+
+.management-tab.button {
+  justify-content: flex-start;
+  width: 100%;
+  height: 36px;
+  padding: 0 var(--space-3);
+  color: var(--muted);
+  text-align: left;
+}
+
+.management-tab.button.is-selected {
+  background: var(--surface-active);
+  color: var(--text);
+  font-weight: var(--weight-title);
+}
+
+.management-content {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: var(--space-6);
+}
+
+.management-title {
   margin: 0;
   color: var(--text);
   font-size: var(--font-title);
   font-weight: var(--weight-title);
   line-height: var(--line-title);
   letter-spacing: -0.01em;
+}
+
+.management-copy {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.management-copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--font-body);
+  line-height: var(--line-body);
+}
+
+.management-action.button {
+  align-self: stretch;
+  width: 100%;
+  margin-top: auto;
+}
+
+.management-error {
+  margin: var(--space-4) 0 0;
 }
 
 .about-version {
@@ -1326,15 +1383,6 @@ button {
   margin: 0 0 0 var(--space-1);
   color: var(--text);
   overflow-wrap: anywhere;
-}
-
-.about-actions {
-  display: flex;
-  margin-top: var(--space-5);
-}
-
-.about-actions .button {
-  width: 100%;
 }
 
 .open-menu {
@@ -1371,18 +1419,22 @@ button {
 
 .toast-region {
   position: fixed;
-  right: 24px;
-  bottom: 24px;
+  right: 0;
+  bottom: var(--space-6);
+  left: 0;
   z-index: 50;
   display: grid;
-  justify-items: end;
+  justify-items: center;
   pointer-events: none;
 }
 
 .toast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   max-width: min(360px, calc(100vw - 48px));
   padding: 10px 12px;
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: var(--radius-medium);
   background: var(--surface);
   box-shadow: var(--shadow-menu);
@@ -1399,12 +1451,19 @@ button {
   transform: translateY(0);
 }
 
-.toast.success {
-  border-color: color-mix(in srgb, var(--success) 45%, var(--border));
+.toast-status-icon {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
 }
 
-.toast.error {
-  border-color: color-mix(in srgb, var(--danger) 55%, var(--border));
+.toast.success .toast-status-icon {
+  color: var(--success);
+}
+
+.toast.error .toast-status-icon {
+  color: var(--danger);
 }
 
 @media (max-width: 560px) {
@@ -1458,20 +1517,42 @@ button {
   }
 
   .toast-region {
-    right: 12px;
-    bottom: 12px;
-    left: 12px;
-    justify-items: stretch;
+    bottom: var(--space-3);
+    padding: 0 var(--space-3);
   }
 
-  .about-button {
-    right: var(--space-3);
+  .management-button {
+    left: var(--space-3);
     bottom: var(--space-3);
   }
 
-  .about-popover {
-    right: var(--space-3);
+  .management-panel {
+    left: var(--space-3);
     bottom: 56px;
+    grid-template-columns: minmax(0, 1fr);
     width: calc(100vw - 24px);
+    height: min(300px, calc(100vh - 68px));
+    overflow: auto;
+  }
+
+  .management-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    flex-direction: row;
+    padding: var(--space-2);
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .management-tab.button {
+    justify-content: center;
+    min-width: 0;
+    padding: 0 var(--space-2);
+    text-align: center;
+  }
+
+  .management-content {
+    padding: var(--space-5);
   }
 }

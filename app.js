@@ -1,4 +1,7 @@
 const STORAGE_KEY = "workspaceTilesState";
+const BACKUP_FORMAT = "workspace-tiles-backup";
+const BACKUP_SCHEMA_VERSION = 1;
+const MAX_BACKUP_FILE_SIZE = 10 * 1024 * 1024;
 const grid = document.getElementById("workspaceGrid");
 const emptyPageState = document.getElementById("emptyPageState");
 const backdrop = document.getElementById("modalBackdrop");
@@ -18,6 +21,7 @@ let pointerReorder = null;
 let keyboardReorder = null;
 let reorderSavePending = false;
 let suppressReorderClickUntil = 0;
+let managementActiveTab = "export";
 
 document.addEventListener("DOMContentLoaded", init);
 document.addEventListener("keydown", (event) => {
@@ -60,60 +64,382 @@ document.addEventListener("visibilitychange", () => {
 });
 
 async function init() {
-  renderAboutEntry();
+  renderManagementEntry();
   state = await loadState();
   render();
 }
 
-function renderAboutEntry() {
-  if (document.getElementById("aboutButton")) return;
+function renderManagementEntry() {
+  if (document.getElementById("managementButton")) return;
   const button = createIconButton(
-    "关于 Workspace Tiles",
-    "M12 17v-5M12 8h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",
-    (event) => toggleAboutPopover(event.currentTarget),
+    "菜单",
+    "M4 7h16M4 12h16M4 17h16",
+    (event) => toggleManagementPanel(event.currentTarget),
   );
-  button.id = "aboutButton";
-  button.classList.add("about-button");
+  button.id = "managementButton";
+  button.classList.add("management-button");
   button.setAttribute("aria-haspopup", "dialog");
   button.setAttribute("aria-expanded", "false");
   menuLayer.before(button);
 }
 
-function toggleAboutPopover(anchor) {
-  if (!menuLayer.hidden && menuLayer.querySelector(".about-popover")) {
+function toggleManagementPanel(anchor) {
+  if (!menuLayer.hidden && menuLayer.querySelector(".management-panel")) {
     closeMenu();
     return;
   }
 
+  openManagementPanel(anchor, managementActiveTab);
+}
+
+function openManagementPanel(anchor, selectedTab = "export") {
+  managementActiveTab = ["export", "import", "about"].includes(selectedTab) ? selectedTab : "export";
+
   closeMenu({ restoreFocus: false });
-  const popover = document.createElement("section");
-  popover.className = "about-popover";
-  popover.setAttribute("role", "dialog");
-  popover.setAttribute("aria-modal", "false");
-  const titleId = createId("about-title");
-  popover.setAttribute("aria-labelledby", titleId);
-  popover.innerHTML = `
-    <h2 id="${titleId}">Workspace Tiles</h2>
-    <p class="about-version">Version ${getAppVersion()} · 2026.07.27</p>
-    <dl class="about-details">
-      <div><dt>Author:</dt><dd>WTing</dd></div>
-      <div><dt>Contact:</dt><dd>wangluna830@gmail.com</dd></div>
-    </dl>
+
+  const panel = document.createElement("section");
+  panel.className = "management-panel";
+  panel.setAttribute("role", "dialog");
+  panel.setAttribute("aria-modal", "false");
+  panel.setAttribute("aria-label", "Workspace Tiles 菜单");
+
+  const navigation = document.createElement("div");
+  navigation.className = "management-tabs";
+  navigation.setAttribute("role", "tablist");
+  navigation.setAttribute("aria-label", "管理功能");
+
+  const content = document.createElement("div");
+  content.className = "management-content";
+  content.id = "managementPanelContent";
+  content.setAttribute("role", "tabpanel");
+
+  const tabDefinitions = [
+    ["export", "导出备份"],
+    ["import", "导入恢复"],
+    ["about", "关于"],
+  ];
+  const tabs = tabDefinitions.map(([tabId, label]) => {
+    const tab = createButton(label, () => selectManagementTab(panel, tabId), { variant: "tertiary" });
+    tab.classList.add("management-tab");
+    tab.id = `management-tab-${tabId}`;
+    tab.dataset.managementTab = tabId;
+    tab.setAttribute("role", "tab");
+    tab.setAttribute("aria-controls", content.id);
+    navigation.append(tab);
+    return tab;
+  });
+
+  navigation.addEventListener("keydown", (event) => {
+    const currentIndex = tabs.indexOf(document.activeElement);
+    if (currentIndex < 0) return;
+    let nextIndex = currentIndex;
+    if (event.key === "ArrowDown" || event.key === "ArrowRight") nextIndex = (currentIndex + 1) % tabs.length;
+    if (event.key === "ArrowUp" || event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = tabs.length - 1;
+    if (nextIndex !== currentIndex) {
+      event.preventDefault();
+      selectManagementTab(panel, tabs[nextIndex].dataset.managementTab);
+      tabs[nextIndex].focus();
+    }
+  });
+
+  panel.append(navigation, content);
+
+  menuReturnFocus = anchor;
+  anchor.setAttribute("aria-expanded", "true");
+  menuLayer.hidden = false;
+  menuLayer.append(panel);
+  selectManagementTab(panel, managementActiveTab);
+  requestAnimationFrame(() => panel.querySelector('[role="tab"][aria-selected="true"]')?.focus());
+}
+
+function selectManagementTab(panel, tabId) {
+  managementActiveTab = tabId;
+  panel.querySelectorAll("[data-management-tab]").forEach((tab) => {
+    const isSelected = tab.dataset.managementTab === tabId;
+    tab.setAttribute("aria-selected", String(isSelected));
+    tab.tabIndex = isSelected ? 0 : -1;
+    tab.classList.toggle("is-selected", isSelected);
+  });
+
+  const content = panel.querySelector(".management-content");
+  content.setAttribute("aria-labelledby", `management-tab-${tabId}`);
+  content.replaceChildren();
+  if (tabId === "import") renderImportPanel(content);
+  else if (tabId === "about") renderAboutPanel(content);
+  else renderExportPanel(content);
+}
+
+function createManagementCopy(title, paragraphs) {
+  const fragment = document.createDocumentFragment();
+  const heading = document.createElement("h2");
+  heading.className = "management-title";
+  heading.textContent = title;
+  fragment.append(heading);
+
+  const copy = document.createElement("div");
+  copy.className = "management-copy";
+  paragraphs.forEach((paragraph) => {
+    const body = document.createElement("p");
+    body.textContent = paragraph;
+    copy.append(body);
+  });
+  fragment.append(copy);
+  return fragment;
+}
+
+function renderExportPanel(content) {
+  content.append(createManagementCopy("导出备份", [
+    "将当前所有工作区、网站和排列顺序保存为一个 JSON 备份文件。备份只会保存到你选择的位置，不会上传到服务器。",
+    "建议在卸载插件、迁移电脑或进行重要调整前导出备份。",
+  ]));
+
+  const button = createButton("选择保存位置", null, {
+    variant: "primary",
+    loadingText: "正在导出",
+  });
+  button.classList.add("management-action");
+  button.addEventListener("click", async () => {
+    if (button.disabled) return;
+    setButtonLoading(button, true);
+    try {
+      const backup = createBackup(state);
+      const saved = await saveBackupFile(JSON.stringify(backup, null, 2), createBackupFilename());
+      if (saved) showToast("备份已导出", "success");
+    } catch (error) {
+      if (error?.name !== "AbortError") showToast("无法导出备份。请重试。", "error");
+    } finally {
+      if (button.isConnected) setButtonLoading(button, false);
+    }
+  });
+  content.append(button);
+}
+
+function renderImportPanel(content) {
+  content.append(createManagementCopy("导入恢复", [
+    "导入会完整替换当前所有工作区、网站和排列顺序，不会与当前数据合并。建议先导出当前数据作为备份。",
+  ]));
+
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json,application/json";
+  input.hidden = true;
+
+  const error = document.createElement("p");
+  error.className = "field-error management-error";
+  error.id = createId("import-error");
+  error.hidden = true;
+
+  const button = createButton("选择备份文件", () => input.click(), {
+    variant: "primary",
+    loadingText: "正在读取",
+  });
+  button.classList.add("management-action");
+  button.setAttribute("aria-describedby", error.id);
+
+  input.addEventListener("change", async () => {
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+
+    setFieldError(button, error, "");
+    setButtonLoading(button, true);
+    try {
+      if (file.size > MAX_BACKUP_FILE_SIZE) {
+        throw new BackupValidationError("备份文件超过 10 MB，无法导入。");
+      }
+      const parsed = validateBackupData(JSON.parse(await file.text()));
+      openImportConfirmation(parsed);
+    } catch (importError) {
+      const message = importError instanceof SyntaxError
+        ? "无法导入：文件不是有效的 JSON。"
+        : importError?.userMessage || "无法导入：这不是有效的 Workspace Tiles 备份文件。";
+      setFieldError(button, error, message);
+      button.focus();
+    } finally {
+      if (button.isConnected) setButtonLoading(button, false);
+    }
+  });
+
+  content.append(input, error, button);
+}
+
+function renderAboutPanel(content) {
+  const heading = document.createElement("h2");
+  heading.className = "management-title";
+  heading.textContent = "Workspace Tiles";
+  const version = document.createElement("p");
+  version.className = "about-version";
+  version.textContent = `Version ${getAppVersion()} · 2026.07.27`;
+
+  const details = document.createElement("dl");
+  details.className = "about-details";
+  details.innerHTML = `
+    <div><dt>Author:</dt><dd>WTing</dd></div>
+    <div><dt>Contact:</dt><dd>wangluna830@gmail.com</dd></div>
   `;
 
   const supportButton = createButton("Buy me a coffee", () => {
     closeMenu({ restoreFocus: false });
     openExternalUrl("https://wt-support-d1glsnc0p9caea039-1318711866.tcloudbaseapp.com/");
   }, { variant: "primary" });
-  const actions = document.createElement("div");
-  actions.className = "about-actions";
-  actions.append(supportButton);
-  popover.append(actions);
+  supportButton.classList.add("management-action");
+  content.append(heading, version, details, supportButton);
+}
 
-  menuReturnFocus = anchor;
-  anchor.setAttribute("aria-expanded", "true");
-  menuLayer.hidden = false;
-  menuLayer.append(popover);
+function createBackup(sourceState, exportedAt = new Date().toISOString(), appVersion = getAppVersion()) {
+  return {
+    format: BACKUP_FORMAT,
+    schemaVersion: BACKUP_SCHEMA_VERSION,
+    exportedAt,
+    appVersion,
+    data: normalizeState(sourceState),
+  };
+}
+
+function createBackupFilename(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `workspace-tiles-backup-${year}-${month}-${day}.json`;
+}
+
+async function saveBackupFile(contents, filename) {
+  if (typeof window.showSaveFilePicker === "function") {
+    const handle = await window.showSaveFilePicker({
+      id: "workspace-tiles-backup",
+      suggestedName: filename,
+      startIn: "downloads",
+      types: [{
+        description: "Workspace Tiles JSON 备份",
+        accept: { "application/json": [".json"] },
+      }],
+    });
+    const writable = await handle.createWritable();
+    await writable.write(new Blob([contents], { type: "application/json;charset=utf-8" }));
+    await writable.close();
+    return true;
+  }
+
+  const url = URL.createObjectURL(new Blob([contents], { type: "application/json;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.hidden = true;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  return true;
+}
+
+class BackupValidationError extends Error {
+  constructor(userMessage) {
+    super(userMessage);
+    this.name = "BackupValidationError";
+    this.userMessage = userMessage;
+  }
+}
+
+function validateBackupData(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new BackupValidationError("无法导入：这不是有效的 Workspace Tiles 备份文件。");
+  }
+  if (value.format !== BACKUP_FORMAT) {
+    throw new BackupValidationError("无法导入：这不是 Workspace Tiles 创建的备份文件。");
+  }
+  if (!Number.isInteger(value.schemaVersion) || value.schemaVersion < 1) {
+    throw new BackupValidationError("无法导入：备份结构版本无效。");
+  }
+  if (value.schemaVersion > BACKUP_SCHEMA_VERSION) {
+    throw new BackupValidationError("无法导入：该备份由更新版本的 Workspace Tiles 创建。");
+  }
+  if (typeof value.exportedAt !== "string" || Number.isNaN(Date.parse(value.exportedAt))) {
+    throw new BackupValidationError("无法导入：备份时间信息无效。");
+  }
+  if (typeof value.appVersion !== "string" || !value.appVersion.trim()) {
+    throw new BackupValidationError("无法导入：备份缺少插件版本信息。");
+  }
+  if (!value.data || typeof value.data !== "object" || !Array.isArray(value.data.workspaces)) {
+    throw new BackupValidationError("无法导入：备份中的工作区数据无效。");
+  }
+
+  const workspaceIds = new Set();
+  const workspaces = value.data.workspaces.map((workspace) => {
+    if (!workspace || typeof workspace !== "object" || Array.isArray(workspace)) {
+      throw new BackupValidationError("无法导入：备份中包含无效的工作区。");
+    }
+    const workspaceId = typeof workspace.id === "string" ? workspace.id.trim() : "";
+    if (!workspaceId || workspaceIds.has(workspaceId)) {
+      throw new BackupValidationError("无法导入：工作区 ID 缺失或重复。");
+    }
+    if (typeof workspace.name !== "string" || !workspace.name.trim() || !Array.isArray(workspace.sites)) {
+      throw new BackupValidationError("无法导入：工作区名称或网站列表无效。");
+    }
+    workspaceIds.add(workspaceId);
+
+    const siteIds = new Set();
+    const sites = workspace.sites.map((site) => {
+      if (!site || typeof site !== "object" || Array.isArray(site)) {
+        throw new BackupValidationError("无法导入：备份中包含无效的网站。");
+      }
+      const siteId = typeof site.id === "string" ? site.id.trim() : "";
+      if (!siteId || siteIds.has(siteId)) {
+        throw new BackupValidationError("无法导入：网站 ID 缺失或重复。");
+      }
+      if (typeof site.name !== "string" || !site.name.trim()) {
+        throw new BackupValidationError("无法导入：网站名称无效。");
+      }
+      if (typeof site.url !== "string" || !site.url.trim() || !normalizeUrl(site.url)) {
+        throw new BackupValidationError("无法导入：备份中包含无效的网址。");
+      }
+      siteIds.add(siteId);
+      return { id: siteId, name: site.name.trim(), url: normalizeUrl(site.url) };
+    });
+
+    return { id: workspaceId, name: workspace.name.trim(), sites };
+  });
+
+  return {
+    state: { workspaces },
+    workspaceCount: workspaces.length,
+    siteCount: workspaces.reduce((total, workspace) => total + workspace.sites.length, 0),
+  };
+}
+
+function openImportConfirmation(parsedBackup) {
+  const currentWorkspaceCount = state.workspaces.length;
+  const currentSiteCount = state.workspaces.reduce((total, workspace) => total + workspace.sites.length, 0);
+  const description = currentWorkspaceCount || currentSiteCount
+    ? `备份包含 ${parsedBackup.workspaceCount} 个工作区和 ${parsedBackup.siteCount} 个网站。导入后，当前的 ${currentWorkspaceCount} 个工作区和 ${currentSiteCount} 个网站将被完整替换。此操作不可撤销。`
+    : `备份包含 ${parsedBackup.workspaceCount} 个工作区和 ${parsedBackup.siteCount} 个网站。导入后将使用这些数据恢复 Workspace Tiles。此操作不可撤销。`;
+
+  const managementButton = document.getElementById("managementButton");
+  openDestructiveModal({
+    title: "导入并替换当前数据？",
+    description,
+    actionLabel: "导入并替换",
+    loadingText: "正在导入",
+    errorMessage: "导入失败，当前数据未更改",
+    onCancel: () => openManagementPanel(managementButton, "import"),
+    onConfirm: async () => {
+      const previousState = state;
+      state = parsedBackup.state;
+      try {
+        await saveState();
+      } catch (error) {
+        state = previousState;
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      render();
+      managementButton?.focus();
+    },
+    successMessage: "数据已恢复",
+    returnFocus: managementButton,
+  });
 }
 
 function getAppVersion() {
@@ -1937,7 +2263,18 @@ function openSiteForm(workspaceId, site = null, returnFocus = null) {
   });
 }
 
-function openDestructiveModal({ title, description, actionLabel, loadingText, onConfirm, successMessage, onSuccess, returnFocus = null }) {
+function openDestructiveModal({
+  title,
+  description,
+  actionLabel,
+  loadingText,
+  onConfirm,
+  successMessage,
+  onSuccess,
+  onCancel = null,
+  errorMessage = "无法完成删除。请重试。",
+  returnFocus = null,
+}) {
   const parentModal = currentModal;
   const dialog = createDialog("small destructive-dialog");
   const header = dialog.querySelector(".dialog-header");
@@ -1955,7 +2292,8 @@ function openDestructiveModal({ title, description, actionLabel, loadingText, on
         dismissOnBackdrop: parentModal.dismissOnBackdrop,
       });
     } else {
-      closeModal();
+      closeModal({ restoreFocus: !onCancel });
+      onCancel?.();
     }
   };
   const cancelButton = createButton("取消", cancel);
@@ -1976,7 +2314,7 @@ function openDestructiveModal({ title, description, actionLabel, loadingText, on
       onSuccess?.();
       showToast(successMessage, "success");
     } catch {
-      showToast("无法完成删除。请重试。", "error");
+      showToast(errorMessage, "error");
     } finally {
       setButtonLoading(confirmButton, false);
     }
@@ -2168,7 +2506,7 @@ function closeMenu({ restoreFocus = true } = {}) {
   menuReturnFocus = null;
   menuLayer.hidden = true;
   menuLayer.replaceChildren();
-  if (returnFocus?.id === "aboutButton") {
+  if (returnFocus?.hasAttribute?.("aria-expanded")) {
     returnFocus.setAttribute("aria-expanded", "false");
   }
   if (restoreFocus && returnFocus?.isConnected) {
@@ -2280,7 +2618,22 @@ function showToast(message, type = "message", duration = 3600) {
 
   const toast = document.createElement("div");
   toast.className = `toast ${type}`;
-  toast.textContent = message;
+  if (type === "success" || type === "error") {
+    const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    icon.classList.add("toast-status-icon");
+    icon.setAttribute("viewBox", "0 0 16 16");
+    icon.setAttribute("aria-hidden", "true");
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circle.setAttribute("cx", "8");
+    circle.setAttribute("cy", "8");
+    circle.setAttribute("r", "4");
+    icon.append(circle);
+    toast.append(icon);
+  }
+
+  const label = document.createElement("span");
+  label.textContent = message;
+  toast.append(label);
   toastRegion.append(toast);
   requestAnimationFrame(() => toast.classList.add("is-visible"));
 
