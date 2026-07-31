@@ -194,6 +194,10 @@ button {
   padding: var(--space-4);
 }
 
+.workspace-tile .tile-body {
+  cursor: grab;
+}
+
 .tile-body:hover,
 .add-workspace-tile:hover {
   background: color-mix(in srgb, var(--surface-subtle) 30%, transparent);
@@ -210,7 +214,7 @@ button {
   align-items: flex-start;
   gap: var(--space-3);
   min-width: 0;
-  padding-right: 120px;
+  padding-right: 80px;
 }
 
 .tile-copy {
@@ -262,6 +266,13 @@ button {
   place-items: center;
   min-width: 0;
   height: 74px;
+}
+
+.favicon-preview-cell[data-reorder-id],
+.site-card.direct-reorder-item,
+.favicon-preview-cell[data-reorder-id] .favicon-mini,
+.site-card.direct-reorder-item .dialog-site-item {
+  cursor: grab;
 }
 
 .workspace-tile.has-pagination .tile-body {
@@ -504,30 +515,33 @@ button {
   stroke: none;
 }
 
-.reorder-handle {
-  cursor: grab;
-  touch-action: none;
-}
-
-.reorder-handle svg {
-  fill: currentColor;
-  stroke: none;
-}
-
-.reorder-handle[aria-pressed="true"] {
-  background: var(--surface-active);
-  color: var(--text);
-  cursor: grabbing;
-}
-
 .workspace-tile.is-dragging,
 .site-card.is-dragging {
   outline: 1px dashed var(--border-strong);
   outline-offset: -1px;
   background: var(--surface-hover);
   box-shadow: var(--shadow-small);
-  opacity: 0.58;
-  transform: scale(0.985);
+  opacity: 0.24;
+}
+
+.favicon-preview-cell.is-dragging {
+  border-radius: var(--radius-base);
+  background: var(--surface-hover);
+  box-shadow: var(--shadow-small);
+  opacity: 0.24;
+}
+
+.is-reorder-shifting {
+  transition: transform 180ms ease;
+  will-change: transform;
+}
+
+.direct-reorder-item.is-dragging,
+.direct-reorder-item.is-dragging .favicon-mini,
+.direct-reorder-item.is-dragging .dialog-site-item {
+  cursor: grabbing;
+  transition: none;
+  will-change: transform;
 }
 
 .workspace-tile.is-keyboard-reordering,
@@ -713,36 +727,6 @@ button {
 .site-card {
   position: relative;
   min-width: 0;
-}
-
-.site-card-actions {
-  position: absolute;
-  top: 0;
-  right: 0;
-  z-index: 1;
-  display: flex;
-  gap: 2px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 120ms ease;
-}
-
-.site-card:hover .site-card-actions,
-.site-card:focus-within .site-card-actions {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.site-card-actions .icon-button {
-  width: 24px;
-  height: 24px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-}
-
-.site-card-actions .icon-button svg {
-  width: 13px;
-  height: 13px;
 }
 
 .empty-state {
@@ -1241,6 +1225,10 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .is-reorder-shifting {
+    transition: none;
+  }
+
   .button-spinner {
     animation-duration: 1400ms;
   }
@@ -1249,7 +1237,6 @@ button {
     transition: none;
   }
 
-  .site-card-actions,
   .workspace-tile.is-dragging,
   .site-card.is-dragging {
     transition: none;

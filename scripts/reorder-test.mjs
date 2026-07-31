@@ -4,7 +4,7 @@ globalThis.document = {
   getElementById() { return {}; },
 };
 
-const { reorderLatestItems } = await import("../reorder.js");
+const { mergeVisibleOrder, reorderIdsByIndex, reorderLatestItems } = await import("../reorder.js");
 
 const initial = [
   { id: "a", name: "最新 A" },
@@ -29,4 +29,14 @@ const withConcurrentDeletion = [
 ];
 assert.deepEqual(reorderLatestItems(withConcurrentDeletion, ["c", "a", "b"]).map((item) => item.id), ["c", "a"]);
 
-console.log("排序测试通过：基础重排、并发新增保留、并发删除兼容均符合预期。");
+assert.deepEqual(
+  mergeVisibleOrder(["a", "b", "c", "d", "e", "f"], ["e", "c", "d"]),
+  ["a", "b", "e", "c", "d", "f"],
+  "当前页排序只替换该页网站原来的位置",
+);
+
+assert.deepEqual(reorderIdsByIndex(["a", "b", "c", "d"], 0, 2), ["b", "c", "a", "d"]);
+assert.deepEqual(reorderIdsByIndex(["a", "b", "c", "d"], 3, 1), ["a", "d", "b", "c"]);
+assert.deepEqual(reorderIdsByIndex(["a", "b"], 1, 1), ["a", "b"]);
+
+console.log("排序测试通过：索引移动、分页重排、并发新增保留、并发删除兼容均符合预期。");

@@ -1,14 +1,13 @@
 import * as i18n from "./i18n.js";
 import { configureForms, openSiteForm, openWorkspaceForm } from "./forms.js";
 import {
-  attachReorderHandle,
+  attachDirectReorder,
   cancelActiveReorder,
   cancelKeyboardReorder,
   cancelPointerReorder,
   cancelReorderIn,
   configureReorder,
   configureReorderContainer,
-  createReorderHandle,
   reorderLatestItems,
 } from "./reorder.js";
 import {
@@ -488,12 +487,11 @@ function renderWorkspaceTile(workspace) {
   const preview = node.querySelector(".favicon-preview");
   const openAllButton = node.querySelector(".open-all-button");
   const moreButton = node.querySelector(".more-workspace-button");
-  const actions = node.querySelector(".tile-actions");
-  const reorderHandle = createReorderHandle(t("reorderWorkspace", { name: workspace.name }));
 
   node.dataset.reorderId = workspace.id;
-  actions.prepend(reorderHandle);
-  attachReorderHandle(reorderHandle, node, grid);
+  attachDirectReorder(node, grid, {
+    ignoreSelector: "button, .favicon-preview, .preview-pagination",
+  });
 
   title.textContent = workspace.name;
   count.textContent = workspace.sites.length > 0 ? t("siteCount", { count: workspace.sites.length }) : t("空工作区");
@@ -502,7 +500,7 @@ function renderWorkspaceTile(workspace) {
 
   if (workspace.sites.length === 0) {
     const addSiteButton = createAddSitePreviewButton(workspace.id);
-    preview.append(wrapPreviewItem(addSiteButton));
+    preview.append(wrapPreviewItem(addSiteButton, { fixed: true }));
     tileBody.addEventListener("click", () => openSiteForm(workspace.id, null, addSiteButton));
   } else {
     const pageSize = 16;
@@ -516,11 +514,24 @@ function renderWorkspaceTile(workspace) {
         event.stopPropagation();
         openUrl(site.url);
       });
-      preview.append(wrapPreviewItem(favicon));
+      favicon.addEventListener("contextmenu", (event) => {
+        openSiteContextMenu(event, workspace.id, site, favicon);
+      });
+      const previewItem = wrapPreviewItem(favicon, { reorderId: site.id });
+      preview.append(previewItem);
+      attachDirectReorder(previewItem, preview, { dragSource: favicon });
     });
     if (currentPage === pageCount - 1 && pageSites.length < pageSize) {
-      preview.append(wrapPreviewItem(createAddSitePreviewButton(workspace.id)));
+      preview.append(wrapPreviewItem(createAddSitePreviewButton(workspace.id), { fixed: true }));
     }
+    configureReorderContainer(preview, {
+      kind: "site",
+      itemSelector: ".favicon-preview-cell[data-reorder-id]",
+      fixedEndSelector: ".favicon-preview-cell.is-fixed-preview-item",
+      getFullIds: () => workspace.sites.map((site) => site.id),
+      preserveHiddenPositions: true,
+      commit: (orderedIds) => commitSiteOrder(workspace.id, orderedIds),
+    });
     if (pageCount > 1) {
       node.classList.add("has-pagination");
       node.append(renderPreviewPagination(workspace.id, currentPage, pageCount));
@@ -588,9 +599,11 @@ function createAddSitePreviewButton(workspaceId) {
   return button;
 }
 
-function wrapPreviewItem(item) {
+function wrapPreviewItem(item, { reorderId = "", fixed = false } = {}) {
   const wrapper = document.createElement("div");
   wrapper.className = "favicon-preview-cell";
+  if (reorderId) wrapper.dataset.reorderId = reorderId;
+  if (fixed) wrapper.classList.add("is-fixed-preview-item");
   wrapper.append(item);
   return wrapper;
 }
@@ -784,18 +797,12 @@ function renderDialogSiteItem(workspaceId, site) {
   const siteButton = createFaviconButton(site, "favicon-mini dialog-site-item");
   siteButton.title = site.url;
   siteButton.addEventListener("click", () => openUrl(site.url));
+  siteButton.addEventListener("contextmenu", (event) => {
+    openSiteContextMenu(event, workspaceId, site, siteButton);
+  });
 
-  const actions = document.createElement("div");
-  actions.className = "site-card-actions";
-  const reorderHandle = createReorderHandle(t("reorderSite", { name: site.name }));
-  actions.append(
-    reorderHandle,
-    createIconButton(t("编辑"), "M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z", () => openSiteForm(workspaceId, site)),
-    createIconButton(t("删除"), "M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6", () => deleteSite(workspaceId, site.id), true),
-  );
-
-  wrapper.append(siteButton, actions);
-  attachReorderHandle(reorderHandle, wrapper, wrapper.closest(".site-grid"));
+  wrapper.append(siteButton);
+  attachDirectReorder(wrapper, wrapper.closest(".site-grid"), { dragSource: siteButton });
   return wrapper;
 }
 
@@ -884,10 +891,11 @@ function deleteWorkspace(workspaceId, returnFocus = null) {
   });
 }
 
-function deleteSite(workspaceId, siteId) {
+function deleteSite(workspaceId, siteId, returnFocus = null) {
   const workspace = getWorkspace(workspaceId);
   const site = workspace?.sites.find((item) => item.id === siteId);
   if (!workspace || !site) return;
+  const returnToWorkspace = activeWorkspaceId === workspaceId;
 
   openDestructiveModal({
     title: t("删除网站"),
@@ -906,10 +914,39 @@ function deleteSite(workspaceId, siteId) {
     },
     onSuccess: () => {
       render();
-      openWorkspaceDialog(workspaceId);
+      if (returnToWorkspace) openWorkspaceDialog(workspaceId);
     },
     successMessage: t("网站已删除"),
+    returnFocus,
   });
+}
+
+function openSiteContextMenu(event, workspaceId, site, anchor) {
+  event.preventDefault();
+  event.stopPropagation();
+  closeMenu({ restoreFocus: false });
+
+  const menu = document.createElement("div");
+  menu.className = "open-menu site-context-menu";
+  menu.setAttribute("role", "menu");
+  menu.innerHTML = `
+    <button type="button" role="menuitem" data-action="edit">${t("编辑网站")}</button>
+    <button type="button" role="menuitem" data-action="delete" class="danger-menu-item">${t("删除")}</button>
+  `;
+  menu.style.top = `${Math.min(event.clientY, window.innerHeight - 96)}px`;
+  menu.style.left = `${Math.min(event.clientX, window.innerWidth - 180)}px`;
+  menu.addEventListener("click", (clickEvent) => {
+    const action = clickEvent.target?.dataset?.action;
+    if (action === "edit") {
+      closeMenu({ restoreFocus: false });
+      openSiteForm(workspaceId, site, anchor);
+    }
+    if (action === "delete") {
+      closeMenu({ restoreFocus: false });
+      deleteSite(workspaceId, site.id, anchor);
+    }
+  });
+  showMenu(menu, anchor);
 }
 
 async function appendSitesToLatestWorkspace(workspaceId, sites) {
@@ -973,7 +1010,7 @@ function openWorkspaceMoreMenu(anchor, workspace) {
   menu.setAttribute("role", "menu");
   menu.innerHTML = `
     <button type="button" role="menuitem" data-action="rename">${t("重命名")}</button>
-    <button type="button" role="menuitem" data-action="delete" class="danger-menu-item">${t("删除工作区")}</button>
+    <button type="button" role="menuitem" data-action="delete" class="danger-menu-item">${t("删除")}</button>
   `;
 
   menu.style.top = `${Math.min(rect.bottom + 8, window.innerHeight - 96)}px`;

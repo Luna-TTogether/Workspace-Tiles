@@ -944,7 +944,7 @@ function openSiteForm(workspaceId, site = null, returnFocus = null) {
 
       closeModal({ restoreFocus: false });
       renderApp();
-      openWorkspaceDialogApp(workspaceId);
+      if (returnWorkspaceId === workspaceId) openWorkspaceDialogApp(workspaceId);
       showToast(
         isEditing ? t("网站已更新") : (addedCount === 1 ? t("网站已添加") : t("addedSiteCount", { count: addedCount })),
         "success",

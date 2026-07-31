@@ -6,9 +6,12 @@ let keyboardReorder = null;
 let reorderSavePending = false;
 let suppressReorderClickUntil = 0;
 let renderApp = () => {};
+let directPointerGesture = null;
+let directPointerListenersReady = false;
 
 function configureReorder({ render }) {
   renderApp = render;
+  ensureDirectPointerListeners();
 }
 
 function createReorderHandle(label) {
@@ -43,9 +46,15 @@ function configureReorderContainer(container, config) {
 
 function attachReorderHandle(handle, item, container) {
   const resolveContainer = () => container || item.parentElement;
-  handle.addEventListener("dragstart", (event) => startPointerReorder(event, item, resolveContainer()));
+  item._reorderHandle = handle;
+  handle.addEventListener("dragstart", (event) => startPointerReorder(event, item, resolveContainer(), {
+    handle,
+    focusOnComplete: true,
+  }));
   handle.addEventListener("dragend", () => {
-    if (pointerReorder?.item === item) cancelPointerReorder();
+    if (pointerReorder?.item !== item) return;
+    suppressReorderClickUntil = Date.now() + 400;
+    cancelPointerReorder();
   });
   handle.addEventListener("keydown", (event) => handleReorderKeydown(event, item, resolveContainer()));
   handle.addEventListener("click", (event) => {
@@ -54,7 +63,47 @@ function attachReorderHandle(handle, item, container) {
   });
 }
 
-function startPointerReorder(event, item, container) {
+function attachDirectReorder(item, container, { ignoreSelector = "", dragSource = null } = {}) {
+  const resolveContainer = () => container || item.parentElement;
+  item.draggable = true;
+  if (dragSource) dragSource.draggable = true;
+  item.classList.add("direct-reorder-item");
+  item.addEventListener("pointerdown", (event) => {
+    if (ignoreSelector && event.target.closest(ignoreSelector)) return;
+    beginDirectPointerGesture(event, item);
+  });
+  item.addEventListener("dragstart", (event) => {
+    if (event.target.closest(".direct-reorder-item") !== item) return;
+    if (pointerReorder?.item === item) return;
+    if (ignoreSelector && event.target.closest(ignoreSelector)) {
+      event.preventDefault();
+      return;
+    }
+    markDirectPointerGestureDragged(item);
+    startPointerReorder(event, item, resolveContainer(), {
+      handle: item._reorderHandle || null,
+      focusOnComplete: false,
+      dragImage: dragSource || item,
+    });
+  });
+  item.addEventListener("dragend", () => {
+    if (pointerReorder?.item !== item) return;
+    suppressReorderClickUntil = Date.now() + 400;
+    cancelPointerReorder();
+  });
+  item.addEventListener("click", (event) => {
+    if (Date.now() >= suppressReorderClickUntil) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
+}
+
+function startPointerReorder(
+  event,
+  item,
+  container,
+  { handle = null, focusOnComplete = false, dragImage = item } = {},
+) {
   const config = container?._reorderConfig;
   if (!config || reorderSavePending) {
     event.preventDefault();
@@ -62,22 +111,39 @@ function startPointerReorder(event, item, container) {
   }
   cancelKeyboardReorder();
   closeMenu({ restoreFocus: false });
-  const originalIds = getReorderIds(container, config);
+  const items = getReorderItems(container, config);
+  const originalIds = items.map((candidate) => candidate.dataset.reorderId);
+  const itemRects = items.map((candidate) => candidate.getBoundingClientRect());
+  const itemIndex = items.indexOf(item);
+  const scrollTop = config.scrollContainer?.scrollTop || 0;
   pointerReorder = {
     container,
     config,
     item,
-    handle: event.currentTarget,
+    handle,
+    focusOnComplete,
     itemId: item.dataset.reorderId,
+    items,
+    itemRects,
+    itemIndex,
+    targetIndex: itemIndex,
+    scrollTop,
     originalIds,
     fullIds: config.getFullIds?.() || originalIds,
   };
-  item.classList.add("is-dragging");
-  container.classList.add("is-reordering");
-  event.currentTarget.setAttribute("aria-pressed", "true");
   event.dataTransfer.effectAllowed = "move";
   event.dataTransfer.setData("text/plain", item.dataset.reorderId);
-  event.dataTransfer.setDragImage(item, item.offsetWidth / 2, 24);
+  const dragImageRect = dragImage.getBoundingClientRect();
+  event.dataTransfer.setDragImage(
+    dragImage,
+    Math.max(0, Math.min(dragImageRect.width, event.clientX - dragImageRect.left)),
+    Math.max(0, Math.min(dragImageRect.height, event.clientY - dragImageRect.top)),
+  );
+  requestAnimationFrame(() => {
+    if (pointerReorder !== null && pointerReorder.item === item) item.classList.add("is-dragging");
+  });
+  container.classList.add("is-reordering");
+  handle?.setAttribute("aria-pressed", "true");
   announceReorder(getReorderPositionMessage(pointerReorder));
 }
 
@@ -87,35 +153,11 @@ function handleReorderDragOver(event) {
   event.preventDefault();
   event.dataTransfer.dropEffect = "move";
   autoScrollReorderContainer(event, session.config.scrollContainer);
-  const target = event.target.closest(session.config.itemSelector);
-  if (target && target !== session.item) {
-    placeReorderItemAtTarget(session, target, event);
-    return;
-  }
-  const fixedEnd = getReorderFixedEnd(session.container, session.config);
-  if (event.target.closest(session.config.fixedEndSelector)) {
-    session.container.insertBefore(session.item, fixedEnd);
-    return;
-  }
-  const nearestItem = getReorderItems(session.container, session.config)
-    .filter((item) => item !== session.item)
-    .map((item) => {
-      const rect = item.getBoundingClientRect();
-      const deltaX = event.clientX - (rect.left + rect.width / 2);
-      const deltaY = event.clientY - (rect.top + rect.height / 2);
-      return { item, distance: deltaX ** 2 + deltaY ** 2 };
-    })
-    .sort((first, second) => first.distance - second.distance)[0]?.item;
-  if (nearestItem) placeReorderItemAtTarget(session, nearestItem, event);
-}
-
-function placeReorderItemAtTarget(session, target, event) {
-  const rect = target.getBoundingClientRect();
-  const columns = getComputedStyle(session.container).gridTemplateColumns.split(" ").length;
-  const insertBefore = columns > 1
-    ? event.clientX < rect.left + rect.width / 2
-    : event.clientY < rect.top + rect.height / 2;
-  target[insertBefore ? "before" : "after"](session.item);
+  const targetIndex = getReorderHitIndex(session, event.clientX, event.clientY);
+  if (targetIndex < 0 || targetIndex === session.targetIndex) return;
+  session.targetIndex = targetIndex;
+  updateReorderTransforms(session);
+  announceReorder(getPointerReorderPositionMessage(session));
 }
 
 function handleReorderDrop(event) {
@@ -130,10 +172,13 @@ function finishPointerReorder() {
   if (!session) return;
   pointerReorder = null;
   clearReorderSessionUi(session);
-  const orderedIds = getCommitReorderIds(session);
+  const visibleIds = reorderIdsByIndex(session.originalIds, session.itemIndex, session.targetIndex);
+  const orderedIds = session.config.preserveHiddenPositions
+    ? mergeVisibleOrder(session.fullIds, visibleIds)
+    : [...visibleIds, ...session.fullIds.filter((id) => !visibleIds.includes(id))];
   if (arraysEqual(orderedIds, session.fullIds)) {
     announceReorder(t("顺序未改变"));
-    session.handle.focus();
+    if (session.focusOnComplete && session.handle?.isConnected) session.handle.focus();
     return;
   }
   void saveReorder(session, orderedIds);
@@ -143,10 +188,9 @@ function cancelPointerReorder() {
   const session = pointerReorder;
   if (!session) return false;
   pointerReorder = null;
-  restoreReorderDom(session.container, session.config, session.fullIds);
   clearReorderSessionUi(session);
   announceReorder(t("已取消排序"));
-  if (session.handle.isConnected) session.handle.focus();
+  if (session.focusOnComplete && session.handle?.isConnected) session.handle.focus();
   return true;
 }
 
@@ -251,10 +295,122 @@ function cancelReorderIn(container) {
 function clearReorderSessionUi(session) {
   session.item.classList.remove("is-dragging", "is-keyboard-reordering");
   session.container.classList.remove("is-reordering");
-  session.handle.setAttribute("aria-pressed", "false");
+  session.items?.forEach((item) => {
+    item.classList.remove("is-reorder-shifting");
+    item.style.removeProperty("transform");
+    item.style.removeProperty("z-index");
+  });
+  session.handle?.setAttribute("aria-pressed", "false");
   session.lockedButtons?.forEach(([button, wasDisabled]) => {
     if (button.isConnected) button.disabled = wasDisabled;
   });
+}
+
+function ensureDirectPointerListeners() {
+  if (directPointerListenersReady) return;
+  directPointerListenersReady = true;
+  document.addEventListener("pointermove", trackDirectPointerGesture, true);
+  document.addEventListener("pointerup", finishDirectPointerGesture, true);
+  document.addEventListener("pointercancel", finishDirectPointerGesture, true);
+}
+
+function beginDirectPointerGesture(event, item) {
+  if (event.button !== 0) return;
+  directPointerGesture = {
+    item,
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    moved: false,
+  };
+}
+
+function markDirectPointerGestureDragged(item) {
+  if (directPointerGesture?.item === item) directPointerGesture.moved = true;
+}
+
+function trackDirectPointerGesture(event) {
+  const gesture = directPointerGesture;
+  if (!gesture || event.pointerId !== gesture.pointerId || gesture.moved) return;
+  if (Math.hypot(event.clientX - gesture.startX, event.clientY - gesture.startY) < 5) return;
+  gesture.moved = true;
+}
+
+function finishDirectPointerGesture(event) {
+  const gesture = directPointerGesture;
+  if (!gesture || event.pointerId !== gesture.pointerId) return;
+  directPointerGesture = null;
+  if (gesture.moved) suppressReorderClickUntil = Date.now() + 400;
+}
+
+function getSessionScrollDelta(session) {
+  return (session.config.scrollContainer?.scrollTop || 0) - session.scrollTop;
+}
+
+function getReorderHitIndex(session, clientX, clientY) {
+  const scrollDelta = getSessionScrollDelta(session);
+  const rects = session.itemRects.map((rect) => ({
+    left: rect.left,
+    right: rect.right,
+    top: rect.top - scrollDelta,
+    bottom: rect.bottom - scrollDelta,
+    width: rect.width,
+    height: rect.height,
+  }));
+  const directHit = rects.findIndex((rect) => (
+    clientX >= rect.left && clientX <= rect.right
+    && clientY >= rect.top && clientY <= rect.bottom
+  ));
+  if (directHit >= 0) return directHit;
+
+  const bounds = session.container.getBoundingClientRect();
+  if (clientX < bounds.left || clientX > bounds.right || clientY < bounds.top || clientY > bounds.bottom) {
+    return -1;
+  }
+  return rects
+    .map((rect, index) => {
+      const dx = clientX - (rect.left + rect.width / 2);
+      const dy = clientY - (rect.top + rect.height / 2);
+      return { index, distance: dx ** 2 + dy ** 2 };
+    })
+    .sort((first, second) => first.distance - second.distance)[0]?.index ?? -1;
+}
+
+function updateReorderTransforms(session) {
+  const { itemIndex, itemRects, targetIndex } = session;
+  session.items.forEach((item, index) => {
+    if (index === itemIndex) return;
+    let positionIndex = index;
+    if (itemIndex < targetIndex && index > itemIndex && index <= targetIndex) {
+      positionIndex = index - 1;
+    } else if (itemIndex > targetIndex && index < itemIndex && index >= targetIndex) {
+      positionIndex = index + 1;
+    }
+    item.classList.add("is-reorder-shifting");
+    if (positionIndex === index) {
+      item.style.transform = "translate(0, 0)";
+      return;
+    }
+    const from = itemRects[index];
+    const to = itemRects[positionIndex];
+    item.style.transform = `translate(${to.left - from.left}px, ${to.top - from.top}px)`;
+  });
+}
+
+function getPointerReorderPositionMessage(session) {
+  return t("reorderPosition", {
+    position: session.targetIndex + 1,
+    count: session.items.length,
+    kind: session.config.kind,
+  });
+}
+
+function reorderIdsByIndex(ids, fromIndex, toIndex) {
+  if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return [...ids];
+  const reordered = [...ids];
+  const [moved] = reordered.splice(fromIndex, 1);
+  reordered.splice(toIndex, 0, moved);
+  return reordered;
 }
 
 function getReorderItems(container, config) {
@@ -267,8 +423,22 @@ function getReorderIds(container, config) {
 
 function getCommitReorderIds(session) {
   const visibleIds = getReorderIds(session.container, session.config);
+  if (session.config.preserveHiddenPositions) {
+    return mergeVisibleOrder(session.fullIds, visibleIds);
+  }
   const visibleIdSet = new Set(visibleIds);
   return [...visibleIds, ...session.fullIds.filter((id) => !visibleIdSet.has(id))];
+}
+
+function mergeVisibleOrder(fullIds, visibleIds) {
+  const visibleIdSet = new Set(visibleIds);
+  let visibleIndex = 0;
+  return fullIds.map((id) => {
+    if (!visibleIdSet.has(id)) return id;
+    const nextId = visibleIds[visibleIndex];
+    visibleIndex += 1;
+    return nextId;
+  });
 }
 
 function getReorderFixedEnd(container, config) {
@@ -323,7 +493,7 @@ async function saveReorder(session, orderedIds) {
     await session.config.commit(orderedIds);
     renderApp();
     announceReorder(t("排序已保存"));
-    focusReorderHandle(session.config.kind, session.itemId);
+    if (session.focusOnComplete) focusReorderHandle(session.config.kind, session.itemId);
   } catch (error) {
     if (error?.code === "WORKSPACE_NOT_FOUND") {
       closeModal({ restoreFocus: false });
@@ -333,7 +503,9 @@ async function saveReorder(session, orderedIds) {
       restoreReorderDom(session.container, session.config, session.fullIds);
       showToast(t("无法保存排序。请重试。"), "error");
       announceReorder(t("无法保存排序，已恢复原顺序"));
-      if (session.handle.isConnected) requestAnimationFrame(() => session.handle.focus());
+      if (session.focusOnComplete && session.handle?.isConnected) {
+        requestAnimationFrame(() => session.handle.focus());
+      }
     }
   } finally {
     reorderSavePending = false;
@@ -381,6 +553,7 @@ function reorderLatestItems(items, orderedIds) {
 }
 
 export {
+  attachDirectReorder,
   attachReorderHandle,
   cancelActiveReorder,
   cancelKeyboardReorder,
@@ -389,5 +562,7 @@ export {
   configureReorder,
   configureReorderContainer,
   createReorderHandle,
+  mergeVisibleOrder,
+  reorderIdsByIndex,
   reorderLatestItems,
 };
