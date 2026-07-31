@@ -388,7 +388,7 @@ function renderAboutPanel(content) {
   heading.textContent = "Workspace Tiles";
   const version = document.createElement("p");
   version.className = "about-version";
-  version.textContent = `Version ${getAppVersion()} · 2026.07.28`;
+  version.textContent = `Version ${getAppVersion()} · 2026.07.30`;
 
   const details = document.createElement("dl");
   details.className = "about-details";
