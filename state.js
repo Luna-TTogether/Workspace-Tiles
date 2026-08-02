@@ -1,5 +1,6 @@
 import { t } from "./i18n.js";
 import { createId, getChromeApi, getSiteFallbackName, normalizeUrl } from "./utils.js";
+import { normalizeCardFace, normalizeNote } from "./workspace-notes.js";
 
 const STORAGE_KEY = "workspaceTilesState";
 let state = { workspaces: [] };
@@ -86,6 +87,8 @@ function normalizeState(value) {
     workspaces: value.workspaces.map((workspace) => ({
       id: workspace.id || createId("workspace"),
       name: String(workspace.name || t("未命名工作区")).trim() || t("未命名工作区"),
+      note: normalizeNote(workspace.note),
+      cardFace: normalizeCardFace(workspace.cardFace),
       sites: Array.isArray(workspace.sites)
         ? workspace.sites.map((site) => normalizeSite(site)).filter(Boolean)
         : [],

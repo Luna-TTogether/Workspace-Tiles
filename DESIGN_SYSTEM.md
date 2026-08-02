@@ -123,7 +123,7 @@ Choicebox 仅用于 4–6 个同组、带标题和说明的单选或多选项。
 
 ## Textarea
 
-Textarea 只用于会自然换行的描述、备注等多行内容。工作区名称、网站名称和 URL 保持使用单行 Input。当前界面没有符合语义的多行字段，因此不引入 Textarea。
+Textarea 只用于会自然换行的描述、备注等多行内容。Workspace Note 在卡片反面使用原位 Textarea；工作区名称、网站名称和 URL 保持使用单行 Input。Note Textarea 使用内部边框变化表达焦点，不增加外溢焦点环。
 
 ## Modal
 

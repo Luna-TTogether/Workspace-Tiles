@@ -19,30 +19,76 @@
 
     <template id="workspaceTileTemplate">
       <article class="workspace-tile">
-        <div class="tile-body">
-          <div class="tile-header">
-            <div class="tile-copy">
-              <h2><button class="workspace-open-button" type="button"></button></h2>
-              <p></p>
+        <div class="workspace-card-inner">
+          <section class="workspace-card-face workspace-sites-face">
+            <div class="tile-body">
+              <div class="tile-header">
+                <div class="tile-copy">
+                  <h2><button class="workspace-open-button" type="button"></button></h2>
+                  <p class="workspace-site-meta"></p>
+                </div>
+              </div>
+              <div class="favicon-preview"></div>
             </div>
-          </div>
-          <div class="favicon-preview"></div>
-        </div>
-        <div class="tile-actions">
-          <button class="icon-button open-all-button" type="button" title="打开全部" aria-label="打开全部" data-i18n-title="打开全部" data-i18n-aria-label="打开全部">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M15 3h6v6"></path>
-              <path d="M10 14 21 3"></path>
-              <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"></path>
-            </svg>
-          </button>
-          <button class="icon-button more-workspace-button" type="button" title="更多" aria-label="更多" data-i18n-title="更多" data-i18n-aria-label="更多">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="6" cy="12" r="1.7"></circle>
-              <circle cx="12" cy="12" r="1.7"></circle>
-              <circle cx="18" cy="12" r="1.7"></circle>
-            </svg>
-          </button>
+            <div class="tile-actions">
+              <button class="icon-button open-all-button" type="button" title="打开全部" aria-label="打开全部">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"></path></svg>
+              </button>
+              <button class="icon-button open-workspace-button" type="button" title="打开工作区" aria-label="打开工作区">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"></path></svg>
+              </button>
+              <button class="icon-button more-workspace-button" type="button" title="更多" aria-label="更多">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="18" cy="12" r="1.7"></circle></svg>
+              </button>
+            </div>
+          </section>
+
+          <section class="workspace-card-face workspace-note-face" aria-hidden="true" inert>
+            <div class="note-accent" aria-hidden="true"></div>
+            <header class="note-card-header">
+              <div class="tile-copy">
+                <h2><button class="workspace-note-title show-sites-button" type="button"></button></h2>
+                <p class="note-card-meta"></p>
+              </div>
+            </header>
+            <div class="workspace-note-layout">
+              <div class="workspace-note-surface">
+                <div class="workspace-note-reader"></div>
+                <button class="workspace-note-empty" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 3.5h8.5L19 8v12.5H6z"></path>
+                    <path d="M14.5 3.5V8H19M9 12h7M9 15.5h5"></path>
+                  </svg>
+                  <span class="workspace-note-empty-label"></span>
+                </button>
+              </div>
+              <div class="workspace-note-reading-footer">
+                <button class="note-text-button edit-note-button" type="button"></button>
+              </div>
+              <div class="workspace-note-editor" hidden>
+                <textarea class="workspace-note-textarea" maxlength="10000"></textarea>
+                <p class="workspace-note-help"></p>
+                <p class="field-error workspace-note-error" hidden></p>
+                <div class="workspace-note-editor-actions">
+                  <button class="button secondary cancel-note-button" type="button"></button>
+                  <button class="button primary save-note-button" type="button"></button>
+                </div>
+              </div>
+            </div>
+            <div class="tile-actions">
+              <button class="icon-button show-sites-button" type="button" title="查看网站" aria-label="查看网站">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="1"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="1"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="1"></rect></svg>
+              </button>
+              <button class="icon-button open-workspace-button" type="button" title="打开工作区" aria-label="打开工作区">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"></path></svg>
+              </button>
+              <button class="icon-button more-workspace-button" type="button" title="更多" aria-label="更多">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="18" cy="12" r="1.7"></circle></svg>
+              </button>
+            </div>
+          </section>
+          <span class="workspace-card-edge workspace-card-edge-right" aria-hidden="true"></span>
+          <span class="workspace-card-edge workspace-card-edge-left" aria-hidden="true"></span>
         </div>
       </article>
     </template>

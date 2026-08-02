@@ -5,6 +5,8 @@ const sourceState = {
   workspaces: [{
     id: "workspace-1",
     name: "工作",
+    note: "- [ ] 检查报表",
+    cardFace: "note",
     sites: [
       { id: "site-1", name: "OpenAI", url: "https://openai.com/" },
       { id: "site-2", name: "书签工具", url: "javascript:void(0)" },
@@ -21,6 +23,15 @@ const validated = validateBackupData(backup);
 assert.equal(validated.workspaceCount, 1);
 assert.equal(validated.siteCount, 2);
 assert.equal(validated.state.workspaces[0].name, "工作");
+assert.equal(validated.state.workspaces[0].note, "- [ ] 检查报表");
+assert.equal(validated.state.workspaces[0].cardFace, "note");
+
+const legacyBackup = structuredClone(backup);
+delete legacyBackup.data.workspaces[0].note;
+delete legacyBackup.data.workspaces[0].cardFace;
+const validatedLegacy = validateBackupData(legacyBackup);
+assert.equal(validatedLegacy.state.workspaces[0].note, "");
+assert.equal(validatedLegacy.state.workspaces[0].cardFace, "sites");
 
 const emptyBackup = structuredClone(backup);
 emptyBackup.data.workspaces = [];

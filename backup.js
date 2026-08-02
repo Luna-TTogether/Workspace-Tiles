@@ -116,7 +116,9 @@ function validateBackupData(value) {
       return { id: siteId, name: site.name.trim(), url: normalizeUrl(site.url) };
     });
 
-    return { id: workspaceId, name: workspace.name.trim(), sites };
+    const note = typeof workspace.note === "string" ? workspace.note : "";
+    const cardFace = workspace.cardFace === "note" ? "note" : "sites";
+    return { id: workspaceId, name: workspace.name.trim(), note, cardFace, sites };
   });
 
   return {

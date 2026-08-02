@@ -126,7 +126,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -161,6 +162,9 @@ button {
 .add-workspace-tile {
   min-height: 428px;
   height: 428px;
+}
+
+.add-workspace-tile {
   border: 1px solid var(--border);
   border-radius: var(--radius-base);
   background: var(--surface);
@@ -170,9 +174,93 @@ button {
 
 .workspace-tile {
   position: relative;
+  border: 0;
+  background: transparent;
+  perspective: 1500px;
+  perspective-origin: 50% 45%;
+}
+
+.workspace-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.workspace-tile.is-note .workspace-card-inner {
+  transform: rotateY(-180deg);
+}
+
+.workspace-tile.is-flipping {
+  pointer-events: none;
+}
+
+.workspace-tile.flip-to-note .workspace-card-inner {
+  animation: workspace-flip-to-note 560ms cubic-bezier(0.85, 0, 0.15, 1) both;
+}
+
+.workspace-tile.flip-to-sites .workspace-card-inner {
+  animation: workspace-flip-to-sites 560ms cubic-bezier(0.85, 0, 0.15, 1) both;
+}
+
+.workspace-tile.is-flipping .workspace-card-face {
+  animation: workspace-flip-shadow 560ms ease-in-out both;
+}
+
+@keyframes workspace-flip-to-note {
+  from { transform: rotateY(0deg); }
+  to { transform: rotateY(-180deg); }
+}
+
+@keyframes workspace-flip-to-sites {
+  from { transform: rotateY(-180deg); }
+  to { transform: rotateY(0deg); }
+}
+
+@keyframes workspace-flip-shadow {
+  0%, 100% { box-shadow: none; }
+  50% { box-shadow: var(--shadow-menu); }
+}
+
+.workspace-card-face {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-base);
+  background: var(--surface);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(3px);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.workspace-note-face {
+  transform: rotateY(180deg) translateZ(3px);
+  cursor: pointer;
+}
+
+.workspace-card-edge {
+  position: absolute;
+  top: 0;
+  left: calc(50% - 3px);
+  width: 6px;
+  height: 100%;
+  border-block: 1px solid var(--border-strong);
+  background: linear-gradient(90deg, var(--border-strong), var(--border), var(--border-strong));
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.workspace-card-edge-right {
+  transform: rotateY(90deg) translateZ(var(--workspace-half-width, 280px));
+}
+
+.workspace-card-edge-left {
+  transform: rotateY(-90deg) translateZ(var(--workspace-half-width, 280px));
 }
 
 .tile-body,
@@ -197,12 +285,13 @@ button {
   cursor: grab;
 }
 
-.tile-body:hover,
+.workspace-sites-face .tile-body:hover,
 .add-workspace-tile:hover {
   background: color-mix(in srgb, var(--surface-subtle) 30%, transparent);
 }
 
-.workspace-tile:hover,
+.workspace-tile:hover .workspace-card-face,
+.workspace-tile:focus-within .workspace-card-face,
 .add-workspace-tile:hover {
   border-color: var(--border-strong);
   box-shadow: var(--shadow-small);
@@ -213,7 +302,7 @@ button {
   align-items: flex-start;
   gap: var(--space-3);
   min-width: 0;
-  padding-right: 80px;
+  padding-right: 112px;
 }
 
 .tile-copy {
@@ -225,7 +314,8 @@ button {
   margin: 0;
 }
 
-.workspace-open-button {
+.workspace-open-button,
+.workspace-note-title {
   display: -webkit-box;
   max-width: 100%;
   padding: 0;
@@ -241,6 +331,210 @@ button {
   text-align: left;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+}
+
+.note-card-header {
+  display: flex;
+  align-items: flex-start;
+  min-height: 62px;
+  padding: var(--space-4) 112px 0 var(--space-4);
+}
+
+.note-card-meta {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: var(--font-meta);
+  line-height: var(--line-meta);
+}
+
+.note-accent {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 3px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.workspace-note-layout {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  padding: 2px var(--space-4) var(--space-4);
+}
+
+.workspace-note-surface {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-base);
+  background: var(--surface);
+}
+
+.workspace-note-reader {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-4);
+  scrollbar-width: thin;
+}
+
+.workspace-note-line {
+  min-height: var(--line-body);
+  margin: 0;
+  color: var(--text);
+  font-size: var(--font-body);
+  line-height: var(--line-body);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.workspace-note-check-row {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-2);
+  min-height: var(--line-body);
+}
+
+.workspace-note-check-row input {
+  display: grid;
+  place-content: center;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.workspace-note-check-row input::before {
+  width: 9px;
+  height: 9px;
+  background: var(--surface);
+  clip-path: polygon(14% 44%, 0 59%, 39% 100%, 100% 20%, 84% 6%, 38% 70%);
+  content: "";
+  transform: scale(0);
+}
+
+.workspace-note-check-row input:checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.workspace-note-check-row input:checked::before {
+  transform: scale(1);
+}
+
+.workspace-note-check-row label {
+  min-width: 0;
+  font-size: var(--font-body);
+  line-height: var(--line-body);
+  overflow-wrap: anywhere;
+}
+
+.workspace-note-check-row.is-complete label {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.workspace-note-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-4);
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: text;
+  text-align: center;
+}
+
+.workspace-note-empty svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+}
+
+.workspace-note-reading-footer {
+  display: flex;
+  justify-content: flex-end;
+  min-height: 32px;
+  padding-top: var(--space-2);
+}
+
+.note-text-button {
+  height: 28px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-base);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: var(--font-meta);
+  font-weight: var(--weight-action);
+}
+
+.note-text-button:hover,
+.note-text-button:focus-visible {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.workspace-note-editor {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: var(--space-2);
+}
+
+.workspace-note-textarea {
+  width: 100%;
+  min-height: 0;
+  resize: none;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-base);
+  background: var(--surface);
+  color: var(--text);
+  padding: var(--space-4);
+  font-size: var(--font-body);
+  line-height: var(--line-body);
+}
+
+.workspace-note-textarea:focus {
+  border-color: var(--focus);
+}
+
+.workspace-note-help,
+.workspace-note-error {
+  margin: 0;
+  font-size: var(--font-meta);
+  line-height: var(--line-meta);
+}
+
+.workspace-note-help {
+  color: var(--muted);
+}
+
+.workspace-note-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
 }
 
 .tile-copy p {
@@ -1229,6 +1523,12 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .workspace-tile.flip-to-note .workspace-card-inner,
+  .workspace-tile.flip-to-sites .workspace-card-inner,
+  .workspace-tile.is-flipping .workspace-card-face {
+    animation: none;
+  }
+
   .is-reorder-shifting {
     transition: none;
   }
@@ -1523,6 +1823,10 @@ button {
   .tile-body {
     height: 384px;
     min-height: 384px;
+  }
+
+  .workspace-note-layout {
+    padding-inline: var(--space-3);
   }
 
   .workspace-tile.has-pagination,
