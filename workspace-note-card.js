@@ -239,6 +239,31 @@ function openNoteDiscardDialog(noteFace, action, returnFocus) {
   showModal(dialog, null, { returnFocus, onDismiss: () => closeModal() });
 }
 
+export function createWorkspaceDragImage(node) {
+  const rect = node.getBoundingClientRect();
+  const preview = node.cloneNode(true);
+  preview.classList.add("workspace-drag-preview");
+  preview.classList.remove(
+    "direct-reorder-item",
+    "is-dragging",
+    "is-keyboard-reordering",
+    "is-reorder-shifting",
+    "is-flipping",
+    "flip-to-note",
+    "flip-to-sites",
+  );
+  preview.removeAttribute("data-reorder-id");
+  preview.removeAttribute("draggable");
+  preview.setAttribute("aria-hidden", "true");
+  preview.setAttribute("inert", "");
+  preview.style.width = `${rect.width}px`;
+  preview.style.height = `${rect.height}px`;
+  preview.querySelectorAll("[id]").forEach((element) => element.removeAttribute("id"));
+  preview.querySelectorAll("[for]").forEach((element) => element.removeAttribute("for"));
+  preview.querySelectorAll("[draggable]").forEach((element) => element.removeAttribute("draggable"));
+  return preview;
+}
+
 export function setWorkspaceCardFace(node, face) {
   const isNote = face === "note";
   const sitesFace = node.querySelector(".workspace-sites-face");

@@ -60,6 +60,7 @@ import {
   isJavascriptUrl,
 } from "./utils.js";
 import {
+  createWorkspaceDragImage,
   flipWorkspaceCard,
   runAfterDiscardNote,
   runNoteCardAction,
@@ -411,7 +412,7 @@ function renderAboutPanel(content) {
   heading.textContent = "Workspace Tiles";
   const version = document.createElement("p");
   version.className = "about-version";
-  version.textContent = `Version ${getAppVersion()} · 2026.07.30`;
+  version.textContent = `Version ${getAppVersion()} · 2026.08.02`;
 
   const details = document.createElement("dl");
   details.className = "about-details";
@@ -520,6 +521,7 @@ function renderWorkspaceTile(workspace) {
   node.dataset.reorderId = workspace.id;
   attachDirectReorder(node, grid, {
     ignoreSelector: "button, input, textarea, label, .favicon-preview, .preview-pagination, .workspace-note-editor",
+    createDragImage: createWorkspaceDragImage,
   });
 
   title.textContent = workspace.name;

@@ -263,6 +263,31 @@ button {
   transform: rotateY(-90deg) translateZ(var(--workspace-half-width, 280px));
 }
 
+.workspace-tile.workspace-drag-preview {
+  position: fixed;
+  z-index: 2147483647;
+  top: 0;
+  left: 0;
+  margin: 0;
+  pointer-events: none;
+  perspective: none;
+  transform: none !important;
+  contain: paint;
+}
+
+.workspace-tile.workspace-drag-preview .workspace-card-inner,
+.workspace-tile.workspace-drag-preview .workspace-card-face {
+  animation: none !important;
+  transform: none !important;
+  transform-style: flat;
+}
+
+.workspace-drag-preview:not(.is-note) .workspace-note-face,
+.workspace-drag-preview.is-note .workspace-sites-face,
+.workspace-drag-preview .workspace-card-edge {
+  display: none;
+}
+
 .tile-body,
 .add-workspace-tile {
   width: 100%;

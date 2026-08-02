@@ -63,7 +63,11 @@ function attachReorderHandle(handle, item, container) {
   });
 }
 
-function attachDirectReorder(item, container, { ignoreSelector = "", dragSource = null } = {}) {
+function attachDirectReorder(
+  item,
+  container,
+  { ignoreSelector = "", dragSource = null, createDragImage = null } = {},
+) {
   const resolveContainer = () => container || item.parentElement;
   item.draggable = true;
   if (dragSource) dragSource.draggable = true;
@@ -80,11 +84,20 @@ function attachDirectReorder(item, container, { ignoreSelector = "", dragSource 
       return;
     }
     markDirectPointerGestureDragged(item);
-    startPointerReorder(event, item, resolveContainer(), {
-      handle: item._reorderHandle || null,
-      focusOnComplete: false,
-      dragImage: dragSource || item,
-    });
+    const temporaryDragImage = createDragImage?.(item) || null;
+    if (temporaryDragImage) document.body.append(temporaryDragImage);
+    try {
+      startPointerReorder(event, item, resolveContainer(), {
+        handle: item._reorderHandle || null,
+        focusOnComplete: false,
+        dragImage: temporaryDragImage || dragSource || item,
+        dragImageOffsetSource: temporaryDragImage ? item : (dragSource || item),
+      });
+    } finally {
+      if (temporaryDragImage) {
+        requestAnimationFrame(() => temporaryDragImage.remove());
+      }
+    }
   });
   item.addEventListener("dragend", () => {
     if (pointerReorder?.item !== item) return;
@@ -102,7 +115,12 @@ function startPointerReorder(
   event,
   item,
   container,
-  { handle = null, focusOnComplete = false, dragImage = item } = {},
+  {
+    handle = null,
+    focusOnComplete = false,
+    dragImage = item,
+    dragImageOffsetSource = dragImage,
+  } = {},
 ) {
   const config = container?._reorderConfig;
   if (!config || reorderSavePending) {
@@ -134,10 +152,11 @@ function startPointerReorder(
   event.dataTransfer.effectAllowed = "move";
   event.dataTransfer.setData("text/plain", item.dataset.reorderId);
   const dragImageRect = dragImage.getBoundingClientRect();
+  const offsetSourceRect = dragImageOffsetSource.getBoundingClientRect();
   event.dataTransfer.setDragImage(
     dragImage,
-    Math.max(0, Math.min(dragImageRect.width, event.clientX - dragImageRect.left)),
-    Math.max(0, Math.min(dragImageRect.height, event.clientY - dragImageRect.top)),
+    Math.max(0, Math.min(dragImageRect.width, event.clientX - offsetSourceRect.left)),
+    Math.max(0, Math.min(dragImageRect.height, event.clientY - offsetSourceRect.top)),
   );
   requestAnimationFrame(() => {
     if (pointerReorder !== null && pointerReorder.item === item) item.classList.add("is-dragging");
