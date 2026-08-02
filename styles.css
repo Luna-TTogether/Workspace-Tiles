@@ -406,6 +406,13 @@ button {
   line-height: 1;
 }
 
+.favicon-fallback {
+  color: var(--muted);
+  font-size: var(--font-title);
+  font-weight: var(--weight-title);
+  line-height: 1;
+}
+
 .favicon-visual img {
   width: 24px;
   height: 24px;

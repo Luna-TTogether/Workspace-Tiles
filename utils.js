@@ -48,11 +48,24 @@ function isJavascriptUrl(url) {
 }
 
 function getFaviconUrl(url) {
-  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(getDomain(url))}&sz=64`;
+  const chromeApi = getChromeApi();
+  if (!chromeApi?.runtime?.getURL || !isHttpUrl(url)) return "";
+  const faviconUrl = new URL(chromeApi.runtime.getURL("/_favicon/"));
+  faviconUrl.searchParams.set("pageUrl", url);
+  faviconUrl.searchParams.set("size", "64");
+  faviconUrl.searchParams.set("allowGoogleServerFallback", "0");
+  faviconUrl.searchParams.set("forceEmptyDefaultFavicon", "1");
+  return faviconUrl.href;
 }
 
 function getInitial(name) {
-  return String(name || "?").trim().charAt(0) || "?";
+  const value = String(name || "?").trim();
+  if (!value) return "?";
+  if (globalThis.Intl?.Segmenter) {
+    const segments = new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(value);
+    return segments[Symbol.iterator]().next().value?.segment || "?";
+  }
+  return Array.from(value)[0] || "?";
 }
 
 function createId(prefix) {

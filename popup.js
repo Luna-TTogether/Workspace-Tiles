@@ -5,7 +5,8 @@ import {
   quickAddCurrentPage,
   updateQuickAddedSite,
 } from "./quick-add.js";
-import { getChromeApi, getFaviconUrl, getInitial, isHttpUrl } from "./utils.js";
+import { renderFavicon } from "./favicon.js";
+import { getChromeApi } from "./utils.js";
 
 const t = (key, values) => i18n.t(key, values);
 const root = document.getElementById("quickAddRoot");
@@ -113,19 +114,7 @@ function showEditor() {
 }
 
 function renderSiteIcon(site) {
-  siteIcon.replaceChildren();
-  if (!isHttpUrl(site.url)) {
-    siteIcon.textContent = getInitial(site.name);
-    return;
-  }
-
-  const image = document.createElement("img");
-  image.alt = "";
-  image.src = getFaviconUrl(site.url);
-  image.addEventListener("error", () => {
-    siteIcon.textContent = getInitial(site.name);
-  }, { once: true });
-  siteIcon.append(image);
+  renderFavicon(siteIcon, site);
 }
 
 function showEmptyState() {

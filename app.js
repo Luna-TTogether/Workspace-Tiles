@@ -50,15 +50,13 @@ import {
   setState,
 } from "./state.js";
 import { removeSiteForUndo, restoreDeletedSiteData } from "./site-delete.js";
+import { renderFavicon } from "./favicon.js";
 import {
   createId,
   getAppVersion,
   getChromeApi,
   getDomain,
-  getFaviconUrl,
-  getInitial,
   getUrlProtocol,
-  isHttpUrl,
   isJavascriptUrl,
 } from "./utils.js";
 
@@ -697,7 +695,7 @@ function createFaviconButton(site, className) {
   button.ariaLabel = site.name;
   const icon = document.createElement("span");
   icon.className = "favicon-visual";
-  icon.append(createFavicon(site));
+  renderFavicon(icon, site);
   button.append(icon);
   if (className.includes("favicon-mini")) {
     const label = document.createElement("span");
@@ -706,24 +704,6 @@ function createFaviconButton(site, className) {
     button.append(label);
   }
   return button;
-}
-
-function createFavicon(site) {
-  if (!isHttpUrl(site.url)) {
-    const fallback = document.createElement("span");
-    fallback.textContent = getInitial(site.name);
-    return fallback;
-  }
-
-  const img = document.createElement("img");
-  img.alt = "";
-  img.src = getFaviconUrl(site.url);
-  img.addEventListener("error", () => {
-    const fallback = document.createElement("span");
-    fallback.textContent = getInitial(site.name);
-    img.replaceWith(fallback);
-  }, { once: true });
-  return img;
 }
 
 function openWorkspaceDialog(workspaceId) {

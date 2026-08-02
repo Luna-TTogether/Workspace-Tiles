@@ -51,6 +51,7 @@ Workspace Tiles 是一个轻量的 Chrome 新标签页工作区启动器。它�
 ## 权限与数据
 
 - `storage`：在 `chrome.storage.local` 中保存工作区、网站、排列顺序和语言偏好
+- `favicon`：读取 Chrome 已保存的网站图标，用于在工作区中识别网站
 - `bookmarks`（可选）：仅在用户主动从书签导入时申请
 - `tabs`（可选）：仅在用户主动从当前窗口导入标签页时申请
 - `activeTab`：仅在用户点击扩展图标或使用快捷键时读取当前页面的标题和 URL
@@ -59,7 +60,7 @@ Workspace Tiles 是一个轻量的 Chrome 新标签页工作区启动器。它�
 
 快捷加入的默认建议按键是 `Alt+Shift+W`，可以在 `chrome://extensions/shortcuts` 中修改。
 
-网站图标通过 Google favicon 服务请求；请求失败时显示网站名称首字母。
+网站图标从 Chrome 的本地 favicon 数据中读取，并缓存在 Workspace Tiles 的本地 IndexedDB 中。图标不会发送给开发者或第三方，也不会包含在备份中；无可用图标时立即显示网站名称的首个字符。
 
 ## 开发检查
 

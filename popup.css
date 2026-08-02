@@ -108,7 +108,6 @@ body.quick-add-body {
   color: var(--muted);
   font-size: var(--font-title);
   font-weight: var(--weight-title);
-  text-transform: uppercase;
 }
 
 .quick-add-site-icon img {

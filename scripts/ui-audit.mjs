@@ -151,6 +151,7 @@ if (process.argv.includes("--self-test")) runSelfTest();
 const sourceFiles = [
   "app.js",
   "backup.js",
+  "favicon.js",
   "forms.js",
   "i18n.js",
   "popup.js",
