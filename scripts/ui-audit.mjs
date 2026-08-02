@@ -37,7 +37,7 @@ function checkForbiddenText(file, source) {
   });
 }
 
-function checkCss(source) {
+function checkCss(file, source, { requireTokens = false } = {}) {
   const withoutComments = source.replace(/\/\*[\s\S]*?\*\//g, (comment) => "\n".repeat(comment.split("\n").length - 1));
   const colorPattern = /(?:#[\da-f]{3,8}\b|(?:rgb|hsl)a?\s*\()/gi;
   let blockDepth = 0;
@@ -50,7 +50,7 @@ function checkCss(source) {
     if (colorPattern.test(line)) {
       const isCustomProperty = /^\s*--[\w-]+\s*:/.test(line);
       if (!isCustomProperty || rootDepth === null) {
-        report("styles.css", index + 1, "组件颜色必须引用语义 Token；颜色字面量只能在 :root Token 中定义");
+        report(file, index + 1, "组件颜色必须引用语义 Token；颜色字面量只能在 :root Token 中定义");
       }
     }
     colorPattern.lastIndex = 0;
@@ -61,20 +61,22 @@ function checkCss(source) {
   });
 
   for (const match of withoutComments.matchAll(/url\(\s*["']?https?:/gi)) {
-    report("styles.css", lineNumber(withoutComments, match.index), "样式和字体资源必须随扩展本地打包");
+    report(file, lineNumber(withoutComments, match.index), "样式和字体资源必须随扩展本地打包");
   }
 
-  const requiredTokens = [
-    "--page", "--surface", "--text", "--muted", "--border", "--focus", "--danger",
-    "--success", "--radius-base", "--shadow-modal", "--space-1", "--space-4", "--font-sans",
-  ];
-  requiredTokens.forEach((token) => {
-    if (!source.includes(`${token}:`)) report("styles.css", 1, `缺少基础设计 Token ${token}`);
-  });
+  if (requireTokens) {
+    const requiredTokens = [
+      "--page", "--surface", "--text", "--muted", "--border", "--focus", "--danger",
+      "--success", "--radius-base", "--shadow-modal", "--space-1", "--space-4", "--font-sans",
+    ];
+    requiredTokens.forEach((token) => {
+      if (!source.includes(`${token}:`)) report(file, 1, `缺少基础设计 Token ${token}`);
+    });
+  }
 
   for (const match of source.matchAll(/--space-[\w-]+\s*:\s*([\d.]+)px/g)) {
     if (Number(match[1]) % 4 !== 0) {
-      report("styles.css", lineNumber(source, match.index), `空间 Token ${match[0]} 不在 4px 网格上`);
+      report(file, lineNumber(source, match.index), `空间 Token ${match[0]} 不在 4px 网格上`);
     }
   }
 }
@@ -86,9 +88,9 @@ function checkScriptAndMarkupColors(file, source) {
   }
 }
 
-function checkHtml(source) {
+function checkHtml(file, source) {
   for (const match of source.matchAll(/<(?:script|link)\b[^>]*(?:src|href)=["']https?:/gi)) {
-    report("newtab.html", lineNumber(source, match.index), "脚本、样式和字体不得使用运行时网络依赖");
+    report(file, lineNumber(source, match.index), "脚本、样式和字体不得使用运行时网络依赖");
   }
 
   let buttonDepth = 0;
@@ -98,15 +100,15 @@ function checkHtml(source) {
       buttonDepth = Math.max(0, buttonDepth - 1);
       continue;
     }
-    if (buttonDepth > 0) report("newtab.html", lineNumber(source, match.index), "不能嵌套 button");
+    if (buttonDepth > 0) report(file, lineNumber(source, match.index), "不能嵌套 button");
     buttonDepth += 1;
 
     if (/class=["'][^"']*\bicon-button\b/i.test(tag)) {
       if (!/\baria-label=["'][^"']+["']/i.test(tag)) {
-        report("newtab.html", lineNumber(source, match.index), "纯图标按钮缺少 aria-label");
+        report(file, lineNumber(source, match.index), "纯图标按钮缺少 aria-label");
       }
       if (!/\btitle=["'][^"']+["']/i.test(tag)) {
-        report("newtab.html", lineNumber(source, match.index), "纯图标按钮缺少 title");
+        report(file, lineNumber(source, match.index), "纯图标按钮缺少 title");
       }
     }
   }
@@ -121,8 +123,8 @@ function checkRequiredPatterns(file, source, patterns) {
 function runSelfTest() {
   errors.length = 0;
   checkForbiddenText("fixture.js", "window.alert('x'); const icon = '●';");
-  checkHtml('<button class="icon-button"><button type="button">嵌套</button></button>');
-  checkCss('.fixture { color: #fff; background-image: url("https://example.com/a.png"); }');
+  checkHtml("fixture.html", '<button class="icon-button"><button type="button">嵌套</button></button>');
+  checkCss("fixture.css", '.fixture { color: #fff; background-image: url("https://example.com/a.png"); }');
 
   const output = errors.join("\n");
   const expectedMessages = [
@@ -151,6 +153,8 @@ const sourceFiles = [
   "backup.js",
   "forms.js",
   "i18n.js",
+  "popup.js",
+  "quick-add.js",
   "reorder.js",
   "state.js",
   "ui-components.js",
@@ -165,13 +169,17 @@ try {
 }
 
 const css = read("styles.css");
+const popupCss = read("popup.css");
 const app = read("app.js");
 const uiComponents = read("ui-components.js");
 const html = read("newtab.html");
+const popupHtml = read("popup.html");
 const designSystem = read("DESIGN_SYSTEM.md");
 
-checkCss(css);
-checkHtml(html);
+checkCss("styles.css", css, { requireTokens: true });
+checkCss("popup.css", popupCss);
+checkHtml("newtab.html", html);
+checkHtml("popup.html", popupHtml);
 sourceFiles.forEach((filename) => {
   const source = read(filename);
   checkForbiddenText(filename, source);
@@ -179,6 +187,8 @@ sourceFiles.forEach((filename) => {
 });
 checkForbiddenText("newtab.html", html);
 checkScriptAndMarkupColors("newtab.html", html);
+checkForbiddenText("popup.html", popupHtml);
+checkScriptAndMarkupColors("popup.html", popupHtml);
 
 checkRequiredPatterns("ui-components.js", uiComponents, [
   { pattern: /function createDialog\(/, message: "缺少统一弹窗工厂 createDialog()" },

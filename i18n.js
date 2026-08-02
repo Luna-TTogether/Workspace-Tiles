@@ -121,6 +121,17 @@ const STORAGE_KEY = "workspaceTilesLanguage";
     "添加中": "Adding…",
     "网站已更新": "Site updated",
     "网站已添加": "Site added",
+    "正在添加当前网站": "Adding current site…",
+    "编辑网站": "Edit site",
+    "完成": "Done",
+    "请先创建工作区，再回来保存当前页面。": "Create a workspace first, then return to save this page.",
+    "无法添加网站": "Couldn’t add site",
+    "无法读取当前页面，请切换到普通网页后重试。": "This page can’t be read. Switch to a regular webpage and try again.",
+    "无法添加网站，请重试。": "Couldn’t add the site. Try again.",
+    "重试": "Try again",
+    "网站已不存在。": "The site no longer exists.",
+    "无法保存修改，请重试。": "Couldn’t save the changes. Try again.",
+    "无法删除网站，请重试。": "Couldn’t delete the site. Try again.",
     "无法保存网站。请重试。": "Couldn’t save the site. Try again.",
     "无法添加网站。请重试。": "Couldn’t add the site. Try again.",
     "无法完成删除。请重试。": "Couldn’t complete the deletion. Try again.",
@@ -129,6 +140,10 @@ const STORAGE_KEY = "workspaceTilesLanguage";
     "工作区已删除": "Workspace deleted",
     "删除网站": "Delete site",
     "网站已删除": "Site deleted",
+    "撤销": "Undo",
+    "恢复中": "Restoring…",
+    "网站已恢复": "Site restored",
+    "无法撤销删除。请重试。": "Couldn’t undo the deletion. Try again.",
     "当前窗口打开": "Open in current window",
     "新窗口打开": "Open in new window",
     "重命名": "Rename",
@@ -142,6 +157,7 @@ const STORAGE_KEY = "workspaceTilesLanguage";
   };
 
   const englishTemplates = {
+    workspaceField: () => "Workspace",
     exportMenuLabel: () => "Export",
     importMenuLabel: () => "Import",
     siteCount: ({ count }) => `${count} ${Number(count) === 1 ? "site" : "sites"}`,
@@ -170,6 +186,7 @@ const STORAGE_KEY = "workspaceTilesLanguage";
   };
 
   const chineseTemplates = {
+    workspaceField: () => "工作区",
     exportMenuLabel: () => "导出备份",
     importMenuLabel: () => "导入恢复",
     siteCount: ({ count }) => `${count} 个网站`,

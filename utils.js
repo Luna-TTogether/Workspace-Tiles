@@ -5,7 +5,7 @@ function getChromeApi() {
 }
 
 function getAppVersion() {
-  return getChromeApi()?.runtime?.getManifest?.().version || "0.1.3";
+  return getChromeApi()?.runtime?.getManifest?.().version || "0.1.4";
 }
 
 function normalizeUrl(value) {

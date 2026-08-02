@@ -1,6 +1,6 @@
 {
   "name": "workspace-tiles",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +9,9 @@
     "test:ui-audit": "node scripts/ui-audit.mjs --self-test",
     "test:backup": "node scripts/backup-test.mjs",
     "test:i18n": "node scripts/i18n-test.mjs",
+    "test:quick-add": "node scripts/quick-add-test.mjs",
+    "test:site-delete": "node scripts/site-delete-test.mjs",
     "test:reorder": "node scripts/reorder-test.mjs",
-    "test": "npm run test:ui-audit && npm run test:i18n && npm run test:backup && npm run test:reorder && npm run check"
+    "test": "npm run test:ui-audit && npm run test:i18n && npm run test:backup && npm run test:quick-add && npm run test:site-delete && npm run test:reorder && npm run check"
   }
 }

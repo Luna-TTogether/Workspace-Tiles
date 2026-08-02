@@ -4,5 +4,8 @@
   },
   "extensionDescription": {
     "message": "在新标签页用轻量工作区整理项目网站、书签和已打开的标签页。"
+  },
+  "quickAddCommandDescription": {
+    "message": "将当前页面快速加入工作区"
   }
 }

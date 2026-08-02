@@ -141,6 +141,6 @@ Toast 只反馈已经结束且无需继续操作的结果，例如保存成功�
 
 ## 规范执行
 
-新功能必须复用现有 Token 和组件工厂，并遵循根目录 `AGENTS.md`。提交前运行 `npm run check`，检查颜色字面量、远程资源、原生提示框、Unicode 图标、按钮嵌套、图标按钮标签以及基础交互组件是否仍然存在。GitHub Push 和 Pull Request 会通过 `.github/workflows/ui-check.yml` 自动运行同一套检查。
+新功能必须复用现有 Token 和组件工厂，并遵循根目录 `AGENTS.md`。提交前运行 `npm test`；其中 UI 审计会检查颜色字面量、远程资源、原生提示框、Unicode 图标、按钮嵌套、图标按钮标签以及基础交互组件是否仍然存在。GitHub Push 和 Pull Request 会通过 `.github/workflows/ui-check.yml` 自动运行同一套检查。
 
 自动检查不能替代视觉和键盘验收。浅色、深色、560px 窄屏、焦点顺序、错误状态、加载状态和存储失败场景按 `.github/pull_request_template.md` 人工确认。

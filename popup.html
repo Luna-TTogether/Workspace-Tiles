@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Workspace Tiles</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body class="quick-add-body">
+    <main class="quick-add-shell" id="quickAddRoot" aria-live="polite" aria-busy="true">
+      <section class="dialog small quick-add-dialog" id="loadingView">
+        <div class="dialog-content quick-add-loading">
+          <span class="quick-add-spinner" aria-hidden="true"></span>
+          <p data-i18n="正在添加当前网站">正在添加当前网站</p>
+        </div>
+      </section>
+
+      <section class="dialog small quick-add-dialog" id="editorView" role="dialog" aria-labelledby="quickAddTitle" hidden>
+        <header class="dialog-header">
+          <div class="dialog-title">
+            <h1 id="quickAddTitle" data-i18n="编辑网站">编辑网站</h1>
+          </div>
+          <button class="icon-button quick-add-close" id="closeButton" type="button" title="关闭" aria-label="关闭" data-i18n-title="关闭" data-i18n-aria-label="关闭">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6l12 12M18 6 6 18"></path>
+            </svg>
+          </button>
+        </header>
+
+        <div class="dialog-content quick-add-editor-content">
+          <div class="quick-add-site-icon" id="siteIcon" aria-hidden="true"></div>
+          <form class="form quick-add-form" id="quickAddForm">
+            <div class="field">
+              <label for="siteName" data-i18n="名称">名称</label>
+              <input id="siteName" name="name" autocomplete="off" maxlength="80">
+            </div>
+            <div class="field">
+              <label for="workspaceSelect" data-i18n="workspaceField">工作区</label>
+              <select id="workspaceSelect" name="workspace"></select>
+            </div>
+            <p class="quick-add-message error" id="editorError" role="status" hidden></p>
+          </form>
+        </div>
+
+        <footer class="dialog-footer">
+          <button class="button secondary" id="removeButton" type="button">
+            <span class="button-label" data-i18n="删除">删除</span>
+          </button>
+          <button class="button primary" id="doneButton" type="submit" form="quickAddForm">
+            <span class="button-spinner" aria-hidden="true"></span>
+            <span class="button-label" data-i18n="完成">完成</span>
+          </button>
+        </footer>
+      </section>
+
+      <section class="dialog small quick-add-dialog" id="stateView" role="dialog" aria-labelledby="stateTitle" hidden>
+        <header class="dialog-header">
+          <div class="dialog-title">
+            <h1 id="stateTitle"></h1>
+          </div>
+          <button class="icon-button" id="stateCloseButton" type="button" title="关闭" aria-label="关闭" data-i18n-title="关闭" data-i18n-aria-label="关闭">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+          </button>
+        </header>
+        <div class="dialog-content">
+          <p class="quick-add-state-description" id="stateDescription"></p>
+          <p class="quick-add-message error" id="stateError" role="status" hidden></p>
+        </div>
+        <footer class="dialog-footer" id="stateActions"></footer>
+      </section>
+
+    </main>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

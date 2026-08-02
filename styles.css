@@ -125,14 +125,13 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
-button:focus-visible,
-input:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
+:focus-visible {
+  outline: none;
 }
 
 button {
@@ -876,7 +875,8 @@ button {
   font-weight: var(--weight-action);
 }
 
-.field input {
+.field input,
+.field select {
   width: 100%;
   height: 36px;
   border: 1px solid var(--border-strong);
@@ -888,16 +888,13 @@ button {
   line-height: var(--line-body);
 }
 
-.field input:focus {
+.field input:focus,
+.field select:focus {
   border-color: var(--focus);
 }
 
 .field input[aria-invalid="true"] {
   border-color: var(--danger);
-}
-
-.field input[aria-invalid="true"]:focus-visible {
-  outline-color: var(--danger);
 }
 
 .destructive-dialog-copy {
@@ -1460,13 +1457,14 @@ button {
   border: 0;
   border-radius: var(--radius-medium);
   background: var(--surface);
-  box-shadow: var(--shadow-menu);
+  box-shadow: 0 0 0 1px var(--border), var(--shadow-small);
   color: var(--text);
   font-size: var(--font-body);
   line-height: var(--line-body);
   opacity: 0;
   transform: translateY(8px);
   transition: opacity 160ms ease, transform 160ms ease;
+  pointer-events: auto;
 }
 
 .toast.is-visible {
@@ -1487,6 +1485,16 @@ button {
 
 .toast.error .toast-status-icon {
   color: var(--danger);
+}
+
+.toast-label {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.toast-action {
+  flex: 0 0 auto;
+  margin-left: var(--space-2);
 }
 
 @media (max-width: 560px) {

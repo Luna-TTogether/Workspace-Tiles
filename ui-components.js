@@ -31,7 +31,15 @@ function setFieldError(input, errorElement, message = "") {
   errorElement.hidden = !hasError;
 }
 
-function showToast(message, type = "message", duration = 3600) {
+function hideToast(toast) {
+  if (!toast?.isConnected) return;
+  toast.classList.remove("is-visible");
+  window.setTimeout(() => {
+    if (toast.isConnected) toast.remove();
+  }, 160);
+}
+
+function showToast(message, type = "message", duration = 3600, action = null) {
   window.clearTimeout(toastTimer);
   toastRegion.replaceChildren();
 
@@ -51,17 +59,34 @@ function showToast(message, type = "message", duration = 3600) {
   }
 
   const label = document.createElement("span");
+  label.className = "toast-label";
   label.textContent = message;
   toast.append(label);
+
+  if (action?.label && typeof action.onClick === "function") {
+    const actionButton = createButton(action.label, async () => {
+      window.clearTimeout(toastTimer);
+      setButtonLoading(actionButton, true);
+      try {
+        await action.onClick();
+        hideToast(toast);
+      } catch {
+        setButtonLoading(actionButton, false);
+        toastTimer = window.setTimeout(() => hideToast(toast), duration);
+      }
+    }, {
+      variant: action.variant || "secondary",
+      size: "small",
+      loadingText: action.loadingText || action.label,
+    });
+    actionButton.classList.add("toast-action");
+    toast.append(actionButton);
+  }
+
   toastRegion.append(toast);
   requestAnimationFrame(() => toast.classList.add("is-visible"));
 
-  toastTimer = window.setTimeout(() => {
-    toast.classList.remove("is-visible");
-    window.setTimeout(() => {
-      if (toast.isConnected) toast.remove();
-    }, 160);
-  }, duration);
+  toastTimer = window.setTimeout(() => hideToast(toast), duration);
 }
 
 function createButton(text, onClick, { variant = "secondary", size = "medium", loadingText = t("处理中") } = {}) {

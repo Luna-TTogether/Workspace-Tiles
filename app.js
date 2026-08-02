@@ -40,6 +40,7 @@ import {
   validateBackupData,
 } from "./backup.js";
 import {
+  STORAGE_KEY,
   getState,
   getWorkspace,
   initializeState,
@@ -48,6 +49,7 @@ import {
   saveState,
   setState,
 } from "./state.js";
+import { removeSiteForUndo, restoreDeletedSiteData } from "./site-delete.js";
 import {
   createId,
   getAppVersion,
@@ -120,12 +122,23 @@ document.addEventListener("visibilitychange", () => {
     cancelKeyboardReorder();
   }
 });
+getChromeApi()?.storage?.onChanged?.addListener((changes, areaName) => {
+  if (areaName !== "local" || !changes[STORAGE_KEY]) return;
+  const nextState = normalizeState(changes[STORAGE_KEY].newValue);
+  if (JSON.stringify(nextState) === JSON.stringify(getState())) return;
+  setState(nextState);
+  render();
+});
 
 async function init() {
   await i18n.init();
   renderManagementEntry();
   await initializeState();
   render();
+  if (new URLSearchParams(window.location.search).get("createWorkspace") === "1") {
+    window.history.replaceState(null, "", window.location.pathname);
+    requestAnimationFrame(() => openWorkspaceForm());
+  }
 }
 
 function renderManagementEntry() {
@@ -891,34 +904,62 @@ function deleteWorkspace(workspaceId, returnFocus = null) {
   });
 }
 
-function deleteSite(workspaceId, siteId, returnFocus = null) {
+async function deleteSite(workspaceId, siteId, returnFocus = null) {
   const workspace = getWorkspace(workspaceId);
   const site = workspace?.sites.find((item) => item.id === siteId);
   if (!workspace || !site) return;
   const returnToWorkspace = activeWorkspaceId === workspaceId;
+  const previousState = getState();
+  let deletion;
 
-  openDestructiveModal({
-    title: t("删除网站"),
-    description: t("deleteSite", { name: site.name }),
-    actionLabel: t("删除网站"),
-    loadingText: t("删除中"),
-    onConfirm: async () => {
-      const previousSites = workspace.sites;
-      workspace.sites = workspace.sites.filter((item) => item.id !== siteId);
-      try {
-        await saveState();
-      } catch (error) {
-        workspace.sites = previousSites;
-        throw error;
-      }
-    },
-    onSuccess: () => {
-      render();
-      if (returnToWorkspace) openWorkspaceDialog(workspaceId);
-    },
-    successMessage: t("网站已删除"),
-    returnFocus,
+  try {
+    const result = removeSiteForUndo(previousState, workspaceId, siteId);
+    deletion = result.deletion;
+    setState(result.state);
+    renderAfterSiteChange(workspaceId, returnToWorkspace, returnFocus);
+    await saveState();
+  } catch {
+    setState(previousState);
+    renderAfterSiteChange(workspaceId, returnToWorkspace, returnFocus);
+    showToast(t("无法完成删除。请重试。"), "error");
+    return;
+  }
+
+  showToast(t("网站已删除"), "error", 6000, {
+    label: t("撤销"),
+    loadingText: t("恢复中"),
+    onClick: () => undoSiteDeletion(deletion, returnToWorkspace),
   });
+}
+
+async function undoSiteDeletion(deletion, returnToWorkspace) {
+  let stateBeforeRestore = null;
+  try {
+    stateBeforeRestore = await loadStateForUpdate();
+    const restored = restoreDeletedSiteData(stateBeforeRestore, deletion);
+    setState(restored.state);
+    await saveState();
+    renderAfterSiteChange(deletion.workspaceId, returnToWorkspace);
+    showToast(t("网站已恢复"), "success");
+  } catch {
+    if (stateBeforeRestore) setState(stateBeforeRestore);
+    renderAfterSiteChange(deletion.workspaceId, returnToWorkspace);
+    showToast(t("无法撤销删除。请重试。"), "error");
+  }
+}
+
+function renderAfterSiteChange(workspaceId, returnToWorkspace, returnFocus = null) {
+  render();
+  if (returnToWorkspace && getWorkspace(workspaceId)) {
+    openWorkspaceDialog(workspaceId);
+    return;
+  }
+
+  const workspaceTile = Array.from(grid.querySelectorAll(".workspace-tile"))
+    .find((tile) => tile.dataset.workspaceId === workspaceId);
+  const focusTarget = workspaceTile?.querySelector(".workspace-open-button");
+  if (returnFocus?.isConnected) requestAnimationFrame(() => returnFocus.focus());
+  else if (focusTarget) requestAnimationFrame(() => focusTarget.focus());
 }
 
 function openSiteContextMenu(event, workspaceId, site, anchor) {

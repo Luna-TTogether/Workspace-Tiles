@@ -4,5 +4,8 @@
   },
   "extensionDescription": {
     "message": "Organize project websites, bookmarks, and open tabs in lightweight workspaces on every new tab."
+  },
+  "quickAddCommandDescription": {
+    "message": "Quickly add the current page to a workspace"
   }
 }
