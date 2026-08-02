@@ -14,6 +14,7 @@ const runtimeSources = [
   "state.js",
   "ui-components.js",
   "utils.js",
+  "workspace-note-card.js",
 ].map((filename) => readFileSync(path.join(projectRoot, filename), "utf8"));
 const htmlSource = readFileSync(path.join(projectRoot, "newtab.html"), "utf8");
 const popupHtmlSource = readFileSync(path.join(projectRoot, "popup.html"), "utf8");

@@ -1,0 +1,333 @@
+import * as i18n from "./i18n.js";
+import {
+  getState,
+  getWorkspace,
+  loadStateForUpdate,
+  saveState,
+  setState,
+} from "./state.js";
+import {
+  closeModal,
+  createButton,
+  createDialog,
+  setButtonLoading,
+  showModal,
+  showToast,
+} from "./ui-components.js";
+import { createId } from "./utils.js";
+import {
+  MAX_NOTE_LENGTH,
+  normalizeNote,
+  parseNoteLines,
+  toggleChecklistLine,
+} from "./workspace-notes.js";
+
+const t = (key, values) => i18n.t(key, values);
+const cardFaceSaveVersions = new Map();
+const cardFaceSaveQueues = new Map();
+
+export function setupWorkspaceNote(node, noteFace, workspace) {
+  const emptyButton = noteFace.querySelector(".workspace-note-empty");
+  const editButton = noteFace.querySelector(".edit-note-button");
+  const cancelButton = noteFace.querySelector(".cancel-note-button");
+  const saveButton = noteFace.querySelector(".save-note-button");
+  const textarea = noteFace.querySelector(".workspace-note-textarea");
+  const help = noteFace.querySelector(".workspace-note-help");
+  const error = noteFace.querySelector(".workspace-note-error");
+
+  emptyButton.querySelector(".workspace-note-empty-label").textContent = t("写点什么……");
+  editButton.textContent = t("编辑便签");
+  cancelButton.textContent = t("取消");
+  const saveSpinner = document.createElement("span");
+  saveSpinner.className = "button-spinner";
+  saveSpinner.setAttribute("aria-hidden", "true");
+  const saveLabel = document.createElement("span");
+  saveLabel.className = "button-label";
+  saveButton.dataset.defaultLabel = t("保存");
+  saveButton.dataset.loadingLabel = t("保存中");
+  saveLabel.textContent = saveButton.dataset.defaultLabel;
+  saveButton.replaceChildren(saveSpinner, saveLabel);
+  textarea.ariaLabel = t("便签内容");
+  help.textContent = t("输入 - [ ] 创建创建 todo。");
+  help.id = createId("note-help");
+  error.id = createId("note-error");
+  textarea.setAttribute("aria-describedby", `${help.id} ${error.id}`);
+  noteFace.dataset.originalNote = workspace.note;
+
+  emptyButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    enterNoteEdit(noteFace);
+  });
+  editButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    enterNoteEdit(noteFace);
+  });
+  cancelButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    exitNoteEdit(noteFace);
+  });
+  saveButton.addEventListener("click", async (event) => {
+    event.stopPropagation();
+    if (saveButton.disabled) return;
+    const value = textarea.value;
+    if (value.length > MAX_NOTE_LENGTH) {
+      setNoteError(noteFace, t("便签内容不能超过 10,000 个字符。"));
+      return;
+    }
+
+    setNoteError(noteFace, "");
+    setButtonLoading(saveButton, true);
+    try {
+      const savedWorkspace = await updateWorkspaceData(workspace.id, (latestWorkspace) => {
+        latestWorkspace.note = normalizeNote(value);
+      });
+      noteFace.dataset.originalNote = savedWorkspace.note;
+      exitNoteEdit(noteFace);
+    } catch {
+      setNoteError(noteFace, t("无法保存便签。请重试。"));
+      textarea.focus();
+    } finally {
+      if (saveButton.isConnected) setButtonLoading(saveButton, false);
+    }
+  });
+  textarea.addEventListener("input", () => {
+    setNoteError(noteFace, "");
+    help.textContent = textarea.value.length >= MAX_NOTE_LENGTH
+      ? t("便签内容不能超过 10,000 个字符。")
+      : t("输入 - [ ] 创建创建 todo。");
+  });
+  textarea.addEventListener("click", (event) => event.stopPropagation());
+
+  renderWorkspaceNote(noteFace, workspace.id, workspace.note);
+}
+
+function renderWorkspaceNote(noteFace, workspaceId, note) {
+  const reader = noteFace.querySelector(".workspace-note-reader");
+  const emptyButton = noteFace.querySelector(".workspace-note-empty");
+  const normalizedNote = normalizeNote(note);
+  reader.replaceChildren();
+  reader.hidden = !normalizedNote;
+  emptyButton.hidden = Boolean(normalizedNote);
+  if (!normalizedNote) return;
+
+  parseNoteLines(normalizedNote).forEach((line) => {
+    if (line.type === "text") {
+      const paragraph = document.createElement("p");
+      paragraph.className = "workspace-note-line";
+      paragraph.textContent = line.source;
+      reader.append(paragraph);
+      return;
+    }
+
+    const row = document.createElement("div");
+    row.className = "workspace-note-check-row";
+    row.classList.toggle("is-complete", line.checked);
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = line.checked;
+    checkbox.id = createId("note-check");
+    const label = document.createElement("label");
+    label.htmlFor = checkbox.id;
+    label.textContent = line.text;
+    checkbox.addEventListener("click", (event) => event.stopPropagation());
+    checkbox.addEventListener("change", async () => {
+      const requestedChecked = checkbox.checked;
+      checkbox.disabled = true;
+      try {
+        const savedWorkspace = await updateWorkspaceData(workspaceId, (latestWorkspace) => {
+          latestWorkspace.note = toggleChecklistLine(latestWorkspace.note, line.index, requestedChecked);
+        });
+        renderWorkspaceNote(noteFace, workspaceId, savedWorkspace.note);
+        noteFace.dataset.originalNote = savedWorkspace.note;
+      } catch {
+        checkbox.checked = !requestedChecked;
+        checkbox.disabled = false;
+        showToast(t("无法保存便签。请重试。"), "error");
+      }
+    });
+    row.append(checkbox, label);
+    reader.append(row);
+  });
+}
+
+function enterNoteEdit(noteFace) {
+  const workspaceId = noteFace.closest(".workspace-tile")?.dataset.workspaceId;
+  const workspace = getWorkspace(workspaceId);
+  if (!workspace) return;
+  const textarea = noteFace.querySelector(".workspace-note-textarea");
+  noteFace.dataset.originalNote = workspace.note;
+  textarea.value = workspace.note;
+  noteFace.querySelector(".workspace-note-help").textContent = t("输入 - [ ] 创建创建 todo。");
+  noteFace.classList.add("is-editing");
+  noteFace.querySelector(".workspace-note-surface").hidden = true;
+  noteFace.querySelector(".workspace-note-reading-footer").hidden = true;
+  noteFace.querySelector(".workspace-note-editor").hidden = false;
+  noteFace.closest(".workspace-tile").draggable = false;
+  setNoteError(noteFace, "");
+  requestAnimationFrame(() => {
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+  });
+}
+
+function exitNoteEdit(noteFace) {
+  const workspaceId = noteFace.closest(".workspace-tile")?.dataset.workspaceId;
+  const workspace = getWorkspace(workspaceId);
+  noteFace.classList.remove("is-editing");
+  noteFace.querySelector(".workspace-note-editor").hidden = true;
+  noteFace.querySelector(".workspace-note-surface").hidden = false;
+  noteFace.querySelector(".workspace-note-reading-footer").hidden = false;
+  noteFace.closest(".workspace-tile").draggable = true;
+  setNoteError(noteFace, "");
+  if (workspace) {
+    noteFace.dataset.originalNote = workspace.note;
+    renderWorkspaceNote(noteFace, workspaceId, workspace.note);
+  }
+}
+
+function setNoteError(noteFace, message) {
+  const error = noteFace.querySelector(".workspace-note-error");
+  const textarea = noteFace.querySelector(".workspace-note-textarea");
+  error.textContent = message;
+  error.hidden = !message;
+  textarea.setAttribute("aria-invalid", String(Boolean(message)));
+}
+
+export function runNoteCardAction(noteFace, action, returnFocus = null) {
+  if (noteFace.classList.contains("is-editing")) {
+    runAfterDiscardNote(noteFace, action, returnFocus);
+    return;
+  }
+  action();
+}
+
+export function runAfterDiscardNote(noteFace, action, returnFocus = null) {
+  if (!noteFace.classList.contains("is-editing")) {
+    action();
+    return;
+  }
+  const textarea = noteFace.querySelector(".workspace-note-textarea");
+  if (textarea.value === noteFace.dataset.originalNote) {
+    exitNoteEdit(noteFace);
+    action();
+    return;
+  }
+  openNoteDiscardDialog(noteFace, action, returnFocus || textarea);
+}
+
+function openNoteDiscardDialog(noteFace, action, returnFocus) {
+  const dialog = createDialog("small");
+  const title = document.createElement("div");
+  title.className = "dialog-title";
+  title.innerHTML = "<h1></h1>";
+  title.querySelector("h1").textContent = t("放弃未保存的修改？");
+  dialog.querySelector(".dialog-header").append(title);
+
+  const description = document.createElement("p");
+  description.className = "destructive-dialog-copy";
+  description.textContent = t("便签中的未保存内容将丢失。");
+  dialog.querySelector(".dialog-content").append(description);
+
+  const keepEditing = createButton(t("继续编辑"), () => closeModal(), { variant: "secondary" });
+  keepEditing.dataset.autofocus = "true";
+  const discard = createButton(t("放弃修改"), () => {
+    closeModal({ restoreFocus: false });
+    exitNoteEdit(noteFace);
+    action();
+  }, { variant: "primary" });
+  dialog.querySelector(".dialog-footer").append(keepEditing, discard);
+  showModal(dialog, null, { returnFocus, onDismiss: () => closeModal() });
+}
+
+export function setWorkspaceCardFace(node, face) {
+  const isNote = face === "note";
+  const sitesFace = node.querySelector(".workspace-sites-face");
+  const noteFace = node.querySelector(".workspace-note-face");
+  node.classList.toggle("is-note", isNote);
+  sitesFace.toggleAttribute("inert", isNote);
+  noteFace.toggleAttribute("inert", !isNote);
+  sitesFace.setAttribute("aria-hidden", String(isNote));
+  noteFace.setAttribute("aria-hidden", String(!isNote));
+  if (isNote) {
+    const workspace = getWorkspace(node.dataset.workspaceId);
+    if (workspace) renderWorkspaceNote(noteFace, workspace.id, workspace.note);
+  }
+}
+
+export function flipWorkspaceCard(node, workspaceId, face, fromKeyboard = false, persist = true) {
+  const currentFace = node.classList.contains("is-note") ? "note" : "sites";
+  if (currentFace === face || node.classList.contains("is-flipping")) return;
+  const animationClass = face === "note" ? "flip-to-note" : "flip-to-sites";
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  node.style.setProperty("--workspace-half-width", `${node.getBoundingClientRect().width / 2}px`);
+
+  const finish = () => {
+    setWorkspaceCardFace(node, face);
+    node.classList.remove("is-flipping", "flip-to-note", "flip-to-sites");
+    if (fromKeyboard) {
+      const selector = face === "note" ? ".workspace-note-title" : ".workspace-open-button";
+      node.querySelector(selector)?.focus();
+    }
+  };
+
+  if (reduceMotion) {
+    finish();
+  } else {
+    const inner = node.querySelector(".workspace-card-inner");
+    let completed = false;
+    const completeOnce = () => {
+      if (completed) return;
+      completed = true;
+      inner.removeEventListener("animationend", onAnimationEnd);
+      finish();
+    };
+    const onAnimationEnd = (event) => {
+      if (event.target === inner) completeOnce();
+    };
+    node.classList.add("is-flipping", animationClass);
+    inner.addEventListener("animationend", onAnimationEnd);
+    window.setTimeout(completeOnce, 640);
+  }
+
+  if (persist) void persistWorkspaceCardFace(node, workspaceId, face, currentFace);
+}
+
+async function persistWorkspaceCardFace(node, workspaceId, face, previousFace) {
+  const version = (cardFaceSaveVersions.get(workspaceId) || 0) + 1;
+  cardFaceSaveVersions.set(workspaceId, version);
+  const previousQueue = cardFaceSaveQueues.get(workspaceId) || Promise.resolve();
+  const savePromise = previousQueue.catch(() => {}).then(() => updateWorkspaceData(workspaceId, (workspace) => {
+    workspace.cardFace = face;
+  }));
+  cardFaceSaveQueues.set(workspaceId, savePromise);
+  try {
+    await savePromise;
+  } catch {
+    if (cardFaceSaveVersions.get(workspaceId) !== version || !node.isConnected) return;
+    flipWorkspaceCard(node, workspaceId, previousFace, false, false);
+    showToast(t("无法保存卡片显示状态。请重试。"), "error");
+  } finally {
+    if (cardFaceSaveQueues.get(workspaceId) === savePromise) cardFaceSaveQueues.delete(workspaceId);
+  }
+}
+
+async function updateWorkspaceData(workspaceId, update) {
+  const previousState = getState();
+  const latestState = await loadStateForUpdate();
+  const workspace = latestState.workspaces.find((item) => item.id === workspaceId);
+  if (!workspace) {
+    setState(latestState);
+    const error = new Error("Workspace not found");
+    error.code = "WORKSPACE_NOT_FOUND";
+    throw error;
+  }
+  update(workspace);
+  setState(latestState);
+  try {
+    await saveState();
+    return workspace;
+  } catch (error) {
+    setState(previousState);
+    throw error;
+  }
+}

@@ -160,6 +160,7 @@ const sourceFiles = [
   "state.js",
   "ui-components.js",
   "utils.js",
+  "workspace-note-card.js",
   "workspace-notes.js",
 ];
 sourceFiles.forEach(runSyntaxCheck);
