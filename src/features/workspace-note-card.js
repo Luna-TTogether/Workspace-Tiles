@@ -1,11 +1,11 @@
-import * as i18n from "./i18n.js";
+import * as i18n from "../core/i18n.js";
 import {
   getState,
   getWorkspace,
   loadStateForUpdate,
   saveState,
   setState,
-} from "./state.js";
+} from "../core/state.js";
 import {
   closeModal,
   createButton,
@@ -14,8 +14,8 @@ import {
   setButtonLoading,
   showModal,
   showToast,
-} from "./ui-components.js";
-import { createId } from "./utils.js";
+} from "../ui/ui-components.js";
+import { createId } from "../core/utils.js";
 import {
   MAX_NOTE_LENGTH,
   normalizeNote,

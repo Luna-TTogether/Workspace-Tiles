@@ -1,12 +1,12 @@
-import * as i18n from "./i18n.js";
+import * as i18n from "./src/core/i18n.js";
 import {
   deleteQuickAddedSite,
   orderWorkspacesByRecent,
   quickAddCurrentPage,
   updateQuickAddedSite,
-} from "./quick-add.js";
-import { renderFavicon } from "./favicon.js";
-import { getChromeApi } from "./utils.js";
+} from "./src/features/quick-add.js";
+import { renderFavicon } from "./src/core/favicon.js";
+import { getChromeApi } from "./src/core/utils.js";
 
 const t = (key, values) => i18n.t(key, values);
 const root = document.getElementById("quickAddRoot");

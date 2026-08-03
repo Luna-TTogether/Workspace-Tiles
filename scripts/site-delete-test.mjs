@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { removeSiteForUndo, restoreDeletedSiteData } from "../site-delete.js";
+import { removeSiteForUndo, restoreDeletedSiteData } from "../src/features/site-delete.js";
 
 const source = {
   workspaces: [{

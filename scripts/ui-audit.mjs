@@ -150,18 +150,19 @@ if (process.argv.includes("--self-test")) runSelfTest();
 
 const sourceFiles = [
   "app.js",
-  "backup.js",
-  "favicon.js",
-  "forms.js",
-  "i18n.js",
   "popup.js",
-  "quick-add.js",
-  "reorder.js",
-  "state.js",
-  "ui-components.js",
-  "utils.js",
-  "workspace-note-card.js",
-  "workspace-notes.js",
+  "src/core/favicon.js",
+  "src/core/i18n.js",
+  "src/core/state.js",
+  "src/core/utils.js",
+  "src/features/backup.js",
+  "src/features/forms.js",
+  "src/features/quick-add.js",
+  "src/features/reorder.js",
+  "src/features/site-delete.js",
+  "src/features/workspace-note-card.js",
+  "src/features/workspace-notes.js",
+  "src/ui/ui-components.js",
 ];
 sourceFiles.forEach(runSyntaxCheck);
 
@@ -171,16 +172,17 @@ try {
   report("manifest.json", 1, `Manifest JSON 无效：${error.message}`);
 }
 
+const cssFiles = ["styles.css", "styles/workspace.css", "styles/dialogs.css", "styles/overlays.css", "styles/responsive.css"];
 const css = read("styles.css");
-const popupCss = read("popup.css");
+const popupCss = read("styles/popup.css");
 const app = read("app.js");
-const uiComponents = read("ui-components.js");
+const uiComponents = read("src/ui/ui-components.js");
 const html = read("newtab.html");
 const popupHtml = read("popup.html");
 const designSystem = read("DESIGN_SYSTEM.md");
 
-checkCss("styles.css", css, { requireTokens: true });
-checkCss("popup.css", popupCss);
+cssFiles.forEach((filename) => checkCss(filename, read(filename), { requireTokens: filename === "styles.css" }));
+checkCss("styles/popup.css", popupCss);
 checkHtml("newtab.html", html);
 checkHtml("popup.html", popupHtml);
 sourceFiles.forEach((filename) => {
@@ -193,7 +195,7 @@ checkScriptAndMarkupColors("newtab.html", html);
 checkForbiddenText("popup.html", popupHtml);
 checkScriptAndMarkupColors("popup.html", popupHtml);
 
-checkRequiredPatterns("ui-components.js", uiComponents, [
+checkRequiredPatterns("src/ui/ui-components.js", uiComponents, [
   { pattern: /function createDialog\(/, message: "缺少统一弹窗工厂 createDialog()" },
   { pattern: /function showModal\(/, message: "缺少统一弹窗入口 showModal()" },
   { pattern: /function trapModalFocus\(/, message: "缺少弹窗焦点循环" },
@@ -204,6 +206,17 @@ checkRequiredPatterns("ui-components.js", uiComponents, [
 
 checkRequiredPatterns("newtab.html", html, [
   { pattern: /id="toastRegion"[^>]*aria-live="polite"/, message: "Toast 区域必须使用 aria-live=polite" },
+  {
+    pattern: /href="styles\.css"[\s\S]*href="styles\/workspace\.css"[\s\S]*href="styles\/dialogs\.css"[\s\S]*href="styles\/overlays\.css"[\s\S]*href="styles\/responsive\.css"/,
+    message: "新标签页缺少 CSS 模块或加载顺序错误",
+  },
+]);
+
+checkRequiredPatterns("popup.html", popupHtml, [
+  {
+    pattern: /href="styles\.css"[\s\S]*href="styles\/workspace\.css"[\s\S]*href="styles\/dialogs\.css"[\s\S]*href="styles\/overlays\.css"[\s\S]*href="styles\/responsive\.css"[\s\S]*href="styles\/popup\.css"/,
+    message: "Popup 缺少 CSS 模块、加载顺序错误或 popup.css 未最后加载",
+  },
 ]);
 
 checkRequiredPatterns("DESIGN_SYSTEM.md", designSystem, [

@@ -1,6 +1,6 @@
 # Workspace Tiles 视觉规范
 
-本项目的字体、颜色和材质规则参考 Vercel Geist Design System：
+本项目的字体、颜色和材质规则参考 Vercel Geist Design System。根目录 `styles.css` 维护字体、全局 Token 和基础规则；`styles/workspace.css`、`styles/dialogs.css`、`styles/overlays.css`、`styles/responsive.css` 按页面结构消费同一套 Token，`styles/popup.css` 仅提供 Popup 的最终覆盖：
 
 - [Introduction](https://vercel.com/geist/introduction)
 - [Typography](https://vercel.com/geist/typography)

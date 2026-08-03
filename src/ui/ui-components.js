@@ -1,5 +1,5 @@
-import { t } from "./i18n.js";
-import { createId } from "./utils.js";
+import { t } from "../core/i18n.js";
+import { createId } from "../core/utils.js";
 
 const backdrop = document.getElementById("modalBackdrop");
 const menuLayer = document.getElementById("menuLayer");

@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
-import { normalizeState, normalizeTileSize, normalizeUiState } from "../state.js";
+import { normalizeState, normalizeTileSize, normalizeUiState } from "../src/core/state.js";
 import {
   MAX_NOTE_LENGTH,
   normalizeCardFace,
   normalizeNote,
   parseNoteLines,
   toggleChecklistLine,
-} from "../workspace-notes.js";
+} from "../src/features/workspace-notes.js";
 
 const oldState = normalizeState({
   workspaces: [{ id: "workspace-1", name: "公司", sites: [] }],

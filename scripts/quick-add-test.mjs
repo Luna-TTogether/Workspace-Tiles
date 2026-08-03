@@ -6,7 +6,7 @@ import {
   orderWorkspacesByRecent,
   touchRecentWorkspace,
   updateQuickAddedSiteData,
-} from "../quick-add.js";
+} from "../src/features/quick-add.js";
 
 const createState = () => ({
   workspaces: [

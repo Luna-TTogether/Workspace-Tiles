@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createBackup, createBackupFilename, validateBackupData } from "../backup.js";
+import { createBackup, createBackupFilename, validateBackupData } from "../src/features/backup.js";
 
 const sourceState = {
   workspaces: [{

@@ -1,5 +1,5 @@
-import { STORAGE_KEY, normalizeState } from "./state.js";
-import { createId, getChromeApi, getSiteFallbackName, normalizeUrl } from "./utils.js";
+import { STORAGE_KEY, normalizeState } from "../core/state.js";
+import { createId, getChromeApi, getSiteFallbackName, normalizeUrl } from "../core/utils.js";
 
 const RECENT_WORKSPACES_STORAGE_KEY = "workspaceTilesRecentWorkspaceIds";
 const MAX_RECENT_WORKSPACES = 5;

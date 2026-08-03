@@ -1,7 +1,7 @@
-import { t } from "./i18n.js";
-import { getState, getWorkspace, saveState } from "./state.js";
-import { createId, getChromeApi, getSiteFallbackName, getUrlValidationError, normalizeUrl } from "./utils.js";
-import { closeModal, createButton, createDialog, createDialogTitle, createEmptyState, createIconButton, getCurrentModal, setButtonLoading, setFieldError, showModal, showToast } from "./ui-components.js";
+import { t } from "../core/i18n.js";
+import { getState, getWorkspace, saveState } from "../core/state.js";
+import { createId, getChromeApi, getSiteFallbackName, getUrlValidationError, normalizeUrl } from "../core/utils.js";
+import { closeModal, createButton, createDialog, createDialogTitle, createEmptyState, createIconButton, getCurrentModal, setButtonLoading, setFieldError, showModal, showToast } from "../ui/ui-components.js";
 
 let renderApp = () => {};
 let openWorkspaceDialogApp = () => {};
@@ -43,12 +43,15 @@ function openWorkspaceForm(workspace = null, returnFocus = null) {
   form.elements.name.value = workspace?.name || "";
   const workspaceNameInput = form.elements.name;
   const workspaceNameError = form.querySelector("#workspaceNameError");
+  let workspaceNameValidationActive = false;
   const validateWorkspaceName = () => {
     const message = workspaceNameInput.value.trim() ? "" : t("工作区名称不能为空。");
     setFieldError(workspaceNameInput, workspaceNameError, message);
     return !message;
   };
-  workspaceNameInput.addEventListener("blur", validateWorkspaceName);
+  workspaceNameInput.addEventListener("blur", () => {
+    if (workspaceNameValidationActive) validateWorkspaceName();
+  });
   workspaceNameInput.addEventListener("input", () => {
     if (!workspaceNameError.hidden && workspaceNameInput.value.trim()) {
       setFieldError(workspaceNameInput, workspaceNameError);
@@ -211,6 +214,7 @@ function openWorkspaceForm(workspace = null, returnFocus = null) {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (submitButton.disabled) return;
+    workspaceNameValidationActive = true;
     if (!validateWorkspaceName()) {
       workspaceNameInput.focus();
       return;

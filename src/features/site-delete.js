@@ -1,4 +1,4 @@
-import { normalizeState } from "./state.js";
+import { normalizeState } from "../core/state.js";
 
 function createSiteDeleteError(code, message) {
   const error = new Error(message || code);

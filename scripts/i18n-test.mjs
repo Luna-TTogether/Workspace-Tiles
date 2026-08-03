@@ -6,15 +6,15 @@ import path from "node:path";
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const runtimeSources = [
   "app.js",
-  "backup.js",
-  "forms.js",
   "popup.js",
-  "quick-add.js",
-  "reorder.js",
-  "state.js",
-  "ui-components.js",
-  "utils.js",
-  "workspace-note-card.js",
+  "src/core/state.js",
+  "src/core/utils.js",
+  "src/features/backup.js",
+  "src/features/forms.js",
+  "src/features/quick-add.js",
+  "src/features/reorder.js",
+  "src/features/workspace-note-card.js",
+  "src/ui/ui-components.js",
 ].map((filename) => readFileSync(path.join(projectRoot, filename), "utf8"));
 const htmlSource = readFileSync(path.join(projectRoot, "newtab.html"), "utf8");
 const popupHtmlSource = readFileSync(path.join(projectRoot, "popup.html"), "utf8");
@@ -32,7 +32,7 @@ globalThis.localStorage = {
   setItem(key, value) { saved.set(key, value); },
 };
 
-const i18n = await import("../i18n.js");
+const i18n = await import("../src/core/i18n.js");
 await i18n.init();
 assert.equal(i18n.getLanguage(), "en");
 assert.equal(i18n.t("siteCount", { count: 2 }), "2 sites");

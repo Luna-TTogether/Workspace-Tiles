@@ -1,6 +1,6 @@
 import { t } from "./i18n.js";
 import { createId, getChromeApi, getSiteFallbackName, normalizeUrl } from "./utils.js";
-import { normalizeCardFace, normalizeNote } from "./workspace-notes.js";
+import { normalizeCardFace, normalizeNote } from "../features/workspace-notes.js";
 
 const STORAGE_KEY = "workspaceTilesState";
 const UI_STORAGE_KEY = "workspaceTilesUiState";

@@ -5,7 +5,9 @@ import path from "node:path";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const app = readFileSync(path.join(projectRoot, "app.js"), "utf8");
-const styles = readFileSync(path.join(projectRoot, "styles.css"), "utf8");
+const styles = ["styles.css", "styles/workspace.css", "styles/dialogs.css", "styles/overlays.css", "styles/responsive.css"]
+  .map((filename) => readFileSync(path.join(projectRoot, filename), "utf8"))
+  .join("\n");
 
 function functionSource(source, name, nextName) {
   const start = source.indexOf(`function ${name}(`);

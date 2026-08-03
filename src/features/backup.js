@@ -1,6 +1,6 @@
-import { t } from "./i18n.js";
-import { normalizeState, normalizeTileSize } from "./state.js";
-import { getAppVersion, normalizeUrl } from "./utils.js";
+import { t } from "../core/i18n.js";
+import { normalizeState, normalizeTileSize } from "../core/state.js";
+import { getAppVersion, normalizeUrl } from "../core/utils.js";
 
 const BACKUP_FORMAT = "workspace-tiles-backup";
 const BACKUP_SCHEMA_VERSION = 1;

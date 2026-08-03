@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { canApplyFaviconResult, getFaviconCacheKey, loadFaviconBlob } from "../favicon.js";
-import { getFaviconUrl, getInitial } from "../utils.js";
+import { canApplyFaviconResult, getFaviconCacheKey, loadFaviconBlob } from "../src/core/favicon.js";
+import { getFaviconUrl, getInitial } from "../src/core/utils.js";
 
 assert.equal(getFaviconCacheKey("https://example.com/a?x=1#part"), "https://example.com");
 assert.equal(getFaviconCacheKey("http://example.com:8080/a"), "http://example.com:8080");

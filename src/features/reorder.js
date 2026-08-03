@@ -1,5 +1,5 @@
-import { t } from "./i18n.js";
-import { closeMenu, closeModal, getCurrentModal, showToast } from "./ui-components.js";
+import { t } from "../core/i18n.js";
+import { closeMenu, closeModal, getCurrentModal, showToast } from "../ui/ui-components.js";
 
 let pointerReorder = null;
 let keyboardReorder = null;

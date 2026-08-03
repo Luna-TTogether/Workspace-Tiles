@@ -1,5 +1,5 @@
-import * as i18n from "./i18n.js";
-import { configureForms, openSiteForm, openWorkspaceForm } from "./forms.js";
+import * as i18n from "./src/core/i18n.js";
+import { configureForms, openSiteForm, openWorkspaceForm } from "./src/features/forms.js";
 import {
   attachDirectReorder,
   cancelActiveReorder,
@@ -9,7 +9,7 @@ import {
   configureReorder,
   configureReorderContainer,
   reorderLatestItems,
-} from "./reorder.js";
+} from "./src/features/reorder.js";
 import {
   closeMenu,
   closeModal,
@@ -30,7 +30,7 @@ import {
   showModal,
   showToast,
   trapModalFocus,
-} from "./ui-components.js";
+} from "./src/ui/ui-components.js";
 import {
   MAX_BACKUP_FILE_SIZE,
   BackupValidationError,
@@ -38,7 +38,7 @@ import {
   createBackupFilename,
   saveBackupFile,
   validateBackupData,
-} from "./backup.js";
+} from "./src/features/backup.js";
 import {
   STORAGE_KEY,
   UI_STORAGE_KEY,
@@ -53,9 +53,9 @@ import {
   saveExpandedWorkspaceId,
   saveState,
   setState,
-} from "./state.js";
-import { removeSiteForUndo, restoreDeletedSiteData } from "./site-delete.js";
-import { renderFavicon } from "./favicon.js";
+} from "./src/core/state.js";
+import { removeSiteForUndo, restoreDeletedSiteData } from "./src/features/site-delete.js";
+import { renderFavicon } from "./src/core/favicon.js";
 import {
   createId,
   getAppVersion,
@@ -63,7 +63,7 @@ import {
   getDomain,
   getUrlProtocol,
   isJavascriptUrl,
-} from "./utils.js";
+} from "./src/core/utils.js";
 import {
   createWorkspaceDragImage,
   flipWorkspaceCard,
@@ -71,7 +71,7 @@ import {
   runNoteCardAction,
   setupWorkspaceNote,
   setWorkspaceCardFace,
-} from "./workspace-note-card.js";
+} from "./src/features/workspace-note-card.js";
 
 const t = (key, values) => i18n.t(key, values);
 const grid = document.getElementById("workspaceGrid");

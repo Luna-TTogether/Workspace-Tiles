@@ -9,7 +9,7 @@ const {
   mergeVisibleOrder,
   reorderIdsByIndex,
   reorderLatestItems,
-} = await import("../reorder.js");
+} = await import("../src/features/reorder.js");
 
 const initial = [
   { id: "a", name: "最新 A" },
