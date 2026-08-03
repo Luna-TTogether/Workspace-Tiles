@@ -575,7 +575,7 @@
   cursor: grab;
 }
 
-.workspace-tile.has-pagination .tile-body {
+.workspace-sites-face .tile-body {
   grid-template-rows: auto 1fr;
   gap: 2px;
   padding-bottom: 44px;
