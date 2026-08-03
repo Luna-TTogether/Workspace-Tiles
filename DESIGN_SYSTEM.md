@@ -54,7 +54,8 @@
 
 | 层级 | 圆角 | 阴影 | 用途 |
 | --- | --- | --- | --- |
-| Base | 6px | 无，Hover 时使用 Small | 工作区卡片、表单控件 |
+| Base | 6px | 无，Hover 时使用 Small | 表单控件、普通按钮 |
+| Widget | 12px | 无，Hover 时使用 Small | 工作区卡片、新建工作区卡片 |
 | Menu | 12px | `--shadow-menu` | 打开全部、更多菜单 |
 | Modal | 12px | `--shadow-modal` | 工作区、编辑和书签弹窗 |
 | Fullscreen | 16px | 仅全屏浮层 | 当前未使用 |

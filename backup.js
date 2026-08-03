@@ -1,5 +1,5 @@
 import { t } from "./i18n.js";
-import { normalizeState } from "./state.js";
+import { normalizeState, normalizeTileSize } from "./state.js";
 import { getAppVersion, normalizeUrl } from "./utils.js";
 
 const BACKUP_FORMAT = "workspace-tiles-backup";
@@ -118,7 +118,8 @@ function validateBackupData(value) {
 
     const note = typeof workspace.note === "string" ? workspace.note : "";
     const cardFace = workspace.cardFace === "note" ? "note" : "sites";
-    return { id: workspaceId, name: workspace.name.trim(), note, cardFace, sites };
+    const tileSize = normalizeTileSize(workspace.tileSize);
+    return { id: workspaceId, name: workspace.name.trim(), note, cardFace, tileSize, sites };
   });
 
   return {

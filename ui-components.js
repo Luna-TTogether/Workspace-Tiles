@@ -300,7 +300,7 @@ function trapModalFocus(event, dialog) {
 
 function showMenu(menu, anchor) {
   menuReturnFocus = anchor;
-  const items = Array.from(menu.querySelectorAll('[role="menuitem"]'));
+  const items = Array.from(menu.querySelectorAll('[role="menuitem"]:not([disabled]), [role="menuitemradio"]:not([disabled])'));
   menu.addEventListener("keydown", (event) => {
     const currentIndex = items.indexOf(document.activeElement);
     let nextIndex = currentIndex;

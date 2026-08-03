@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
-import { getFaviconCacheKey, loadFaviconBlob } from "../favicon.js";
+import { canApplyFaviconResult, getFaviconCacheKey, loadFaviconBlob } from "../favicon.js";
 import { getFaviconUrl, getInitial } from "../utils.js";
 
 assert.equal(getFaviconCacheKey("https://example.com/a?x=1#part"), "https://example.com");
 assert.equal(getFaviconCacheKey("http://example.com:8080/a"), "http://example.com:8080");
 assert.equal(getFaviconCacheKey("not a url"), "not a url");
+
+const renderToken = Symbol("favicon-render");
+const detachedContainer = { faviconRenderToken: renderToken, isConnected: false };
+assert.equal(canApplyFaviconResult(detachedContainer, renderToken), true, "未挂载的弹窗节点仍可接收有效图标结果");
+assert.equal(canApplyFaviconResult(detachedContainer, Symbol("stale-render")), false, "过期图标结果不会覆盖新渲染");
 
 assert.equal(getInitial("  OpenAI"), "O");
 assert.equal(getInitial("中文网站"), "中");
@@ -41,4 +46,4 @@ assert.equal(secondBlob.size, firstBlob.size);
 delete globalThis.fetch;
 delete globalThis.chrome;
 
-console.log("favicon 测试通过：本地地址、缓存键、并发去重、Unicode 首字符和降级均符合预期。");
+console.log("favicon 测试通过：本地地址、缓存键、并发去重、离线弹窗节点、Unicode 首字符和降级均符合预期。");

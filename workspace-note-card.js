@@ -10,6 +10,7 @@ import {
   closeModal,
   createButton,
   createDialog,
+  getCurrentModal,
   setButtonLoading,
   showModal,
   showToast,
@@ -26,12 +27,13 @@ const t = (key, values) => i18n.t(key, values);
 const cardFaceSaveVersions = new Map();
 const cardFaceSaveQueues = new Map();
 
-export function setupWorkspaceNote(node, noteFace, workspace) {
+export function setupWorkspaceNote(node, noteFace, workspace, { onSaved = null } = {}) {
   const emptyButton = noteFace.querySelector(".workspace-note-empty");
   const editButton = noteFace.querySelector(".edit-note-button");
   const cancelButton = noteFace.querySelector(".cancel-note-button");
   const saveButton = noteFace.querySelector(".save-note-button");
   const textarea = noteFace.querySelector(".workspace-note-textarea");
+  const reader = noteFace.querySelector(".workspace-note-reader");
   const help = noteFace.querySelector(".workspace-note-help");
   const error = noteFace.querySelector(".workspace-note-error");
 
@@ -48,6 +50,8 @@ export function setupWorkspaceNote(node, noteFace, workspace) {
   saveLabel.textContent = saveButton.dataset.defaultLabel;
   saveButton.replaceChildren(saveSpinner, saveLabel);
   textarea.ariaLabel = t("便签内容");
+  reader.tabIndex = 0;
+  reader.ariaLabel = t("便签内容");
   help.textContent = t("输入 - [ ] 创建创建 todo。");
   help.id = createId("note-help");
   error.id = createId("note-error");
@@ -83,6 +87,7 @@ export function setupWorkspaceNote(node, noteFace, workspace) {
       });
       noteFace.dataset.originalNote = savedWorkspace.note;
       exitNoteEdit(noteFace);
+      onSaved?.(savedWorkspace);
     } catch {
       setNoteError(noteFace, t("无法保存便签。请重试。"));
       textarea.focus();
@@ -139,6 +144,7 @@ function renderWorkspaceNote(noteFace, workspaceId, note) {
         });
         renderWorkspaceNote(noteFace, workspaceId, savedWorkspace.note);
         noteFace.dataset.originalNote = savedWorkspace.note;
+        onSaved?.(savedWorkspace);
       } catch {
         checkbox.checked = !requestedChecked;
         checkbox.disabled = false;
@@ -151,7 +157,8 @@ function renderWorkspaceNote(noteFace, workspaceId, note) {
 }
 
 function enterNoteEdit(noteFace) {
-  const workspaceId = noteFace.closest(".workspace-tile")?.dataset.workspaceId;
+  const workspaceContainer = noteFace.closest("[data-workspace-id]");
+  const workspaceId = workspaceContainer?.dataset.workspaceId;
   const workspace = getWorkspace(workspaceId);
   if (!workspace) return;
   const textarea = noteFace.querySelector(".workspace-note-textarea");
@@ -162,7 +169,7 @@ function enterNoteEdit(noteFace) {
   noteFace.querySelector(".workspace-note-surface").hidden = true;
   noteFace.querySelector(".workspace-note-reading-footer").hidden = true;
   noteFace.querySelector(".workspace-note-editor").hidden = false;
-  noteFace.closest(".workspace-tile").draggable = false;
+  if (workspaceContainer?.matches(".workspace-tile")) workspaceContainer.draggable = false;
   setNoteError(noteFace, "");
   requestAnimationFrame(() => {
     textarea.focus();
@@ -171,13 +178,14 @@ function enterNoteEdit(noteFace) {
 }
 
 function exitNoteEdit(noteFace) {
-  const workspaceId = noteFace.closest(".workspace-tile")?.dataset.workspaceId;
+  const workspaceContainer = noteFace.closest("[data-workspace-id]");
+  const workspaceId = workspaceContainer?.dataset.workspaceId;
   const workspace = getWorkspace(workspaceId);
   noteFace.classList.remove("is-editing");
   noteFace.querySelector(".workspace-note-editor").hidden = true;
   noteFace.querySelector(".workspace-note-surface").hidden = false;
   noteFace.querySelector(".workspace-note-reading-footer").hidden = false;
-  noteFace.closest(".workspace-tile").draggable = true;
+  if (workspaceContainer?.matches(".workspace-tile")) workspaceContainer.draggable = true;
   setNoteError(noteFace, "");
   if (workspace) {
     noteFace.dataset.originalNote = workspace.note;
@@ -187,9 +195,11 @@ function exitNoteEdit(noteFace) {
 
 function setNoteError(noteFace, message) {
   const error = noteFace.querySelector(".workspace-note-error");
+  const help = noteFace.querySelector(".workspace-note-help");
   const textarea = noteFace.querySelector(".workspace-note-textarea");
   error.textContent = message;
   error.hidden = !message;
+  help.hidden = Boolean(message);
   textarea.setAttribute("aria-invalid", String(Boolean(message)));
 }
 
@@ -216,6 +226,17 @@ export function runAfterDiscardNote(noteFace, action, returnFocus = null) {
 }
 
 function openNoteDiscardDialog(noteFace, action, returnFocus) {
+  const parentModal = getCurrentModal();
+  const restoreParent = () => {
+    if (parentModal?.dialog && parentModal.dialog.contains(noteFace)) {
+      showModal(parentModal.dialog, () => returnFocus?.focus(), {
+        onDismiss: parentModal.onDismiss,
+        dismissOnBackdrop: parentModal.dismissOnBackdrop,
+      });
+      return;
+    }
+    closeModal();
+  };
   const dialog = createDialog("small");
   const title = document.createElement("div");
   title.className = "dialog-title";
@@ -228,20 +249,50 @@ function openNoteDiscardDialog(noteFace, action, returnFocus) {
   description.textContent = t("便签中的未保存内容将丢失。");
   dialog.querySelector(".dialog-content").append(description);
 
-  const keepEditing = createButton(t("继续编辑"), () => closeModal(), { variant: "secondary" });
+  const keepEditing = createButton(t("继续编辑"), restoreParent, { variant: "secondary" });
   keepEditing.dataset.autofocus = "true";
   const discard = createButton(t("放弃修改"), () => {
-    closeModal({ restoreFocus: false });
     exitNoteEdit(noteFace);
+    if (parentModal?.dialog && parentModal.dialog.contains(noteFace)) {
+      showModal(parentModal.dialog, null, {
+        onDismiss: parentModal.onDismiss,
+        dismissOnBackdrop: parentModal.dismissOnBackdrop,
+      });
+    } else {
+      closeModal({ restoreFocus: false });
+    }
     action();
   }, { variant: "primary" });
   dialog.querySelector(".dialog-footer").append(keepEditing, discard);
-  showModal(dialog, null, { returnFocus, onDismiss: () => closeModal() });
+  showModal(dialog, null, { returnFocus, onDismiss: restoreParent });
 }
 
 export function createWorkspaceDragImage(node) {
   const rect = node.getBoundingClientRect();
   const preview = node.cloneNode(true);
+  const sourceVisuals = Array.from(node.querySelectorAll(".favicon-visual"));
+  const previewVisuals = Array.from(preview.querySelectorAll(".favicon-visual"));
+  sourceVisuals.forEach((sourceVisual, index) => {
+    const sourceImage = sourceVisual.querySelector(".favicon-image");
+    const previewVisual = previewVisuals[index];
+    const previewImage = previewVisual?.querySelector(".favicon-image");
+    if (!sourceImage || !previewVisual || !previewImage) return;
+    try {
+      if (!sourceImage.complete || !sourceImage.naturalWidth) throw new Error("Favicon is not ready");
+      const canvas = document.createElement("canvas");
+      canvas.width = sourceImage.naturalWidth;
+      canvas.height = sourceImage.naturalHeight;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Canvas is unavailable");
+      context.drawImage(sourceImage, 0, 0);
+      canvas.className = previewImage.className;
+      canvas.setAttribute("aria-hidden", "true");
+      previewImage.replaceWith(canvas);
+    } catch {
+      previewImage.remove();
+      previewVisual.querySelector(".favicon-fallback")?.removeAttribute("hidden");
+    }
+  });
   preview.classList.add("workspace-drag-preview");
   preview.classList.remove(
     "direct-reorder-item",

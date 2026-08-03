@@ -84,25 +84,27 @@ function attachDirectReorder(
       return;
     }
     markDirectPointerGestureDragged(item);
-    const temporaryDragImage = createDragImage?.(item) || null;
-    if (temporaryDragImage) document.body.append(temporaryDragImage);
-    try {
-      startPointerReorder(event, item, resolveContainer(), {
-        handle: item._reorderHandle || null,
-        focusOnComplete: false,
-        dragImage: temporaryDragImage || dragSource || item,
-        dragImageOffsetSource: temporaryDragImage ? item : (dragSource || item),
-      });
-    } finally {
-      if (temporaryDragImage) {
-        requestAnimationFrame(() => temporaryDragImage.remove());
-      }
+    const dragPreview = createDragImage?.(item) || null;
+    if (dragPreview) document.body.append(dragPreview);
+    const started = startPointerReorder(event, item, resolveContainer(), {
+      handle: item._reorderHandle || null,
+      focusOnComplete: false,
+      dragImage: dragSource || item,
+      dragImageOffsetSource: dragSource || item,
+      dragPreview,
+    });
+    if (!started) {
+      dragPreview?.remove();
     }
   });
   item.addEventListener("dragend", () => {
     if (pointerReorder?.item !== item) return;
     suppressReorderClickUntil = Date.now() + 400;
     cancelPointerReorder();
+  });
+  item.addEventListener("drag", (event) => {
+    if (pointerReorder?.item !== item || (!event.clientX && !event.clientY)) return;
+    positionDragPreview(pointerReorder, event.clientX, event.clientY);
   });
   item.addEventListener("click", (event) => {
     if (Date.now() >= suppressReorderClickUntil) return;
@@ -120,12 +122,13 @@ function startPointerReorder(
     focusOnComplete = false,
     dragImage = item,
     dragImageOffsetSource = dragImage,
+    dragPreview = null,
   } = {},
 ) {
   const config = container?._reorderConfig;
   if (!config || reorderSavePending) {
     event.preventDefault();
-    return;
+    return false;
   }
   cancelKeyboardReorder();
   closeMenu({ restoreFocus: false });
@@ -133,7 +136,6 @@ function startPointerReorder(
   const originalIds = items.map((candidate) => candidate.dataset.reorderId);
   const itemRects = items.map((candidate) => candidate.getBoundingClientRect());
   const itemIndex = items.indexOf(item);
-  const scrollTop = config.scrollContainer?.scrollTop || 0;
   pointerReorder = {
     container,
     config,
@@ -144,26 +146,43 @@ function startPointerReorder(
     items,
     itemRects,
     itemIndex,
-    targetIndex: itemIndex,
-    scrollTop,
     originalIds,
     fullIds: config.getFullIds?.() || originalIds,
+    dragPreview,
+    pointerOffsetX: event.clientX - itemRects[itemIndex].left,
+    pointerOffsetY: event.clientY - itemRects[itemIndex].top,
+    pendingPointerX: event.clientX,
+    pendingPointerY: event.clientY,
+    previewFrame: 0,
+    reorderFrame: 0,
+    lastReorderAt: 0,
   };
   event.dataTransfer.effectAllowed = "move";
   event.dataTransfer.setData("text/plain", item.dataset.reorderId);
-  const dragImageRect = dragImage.getBoundingClientRect();
-  const offsetSourceRect = dragImageOffsetSource.getBoundingClientRect();
-  event.dataTransfer.setDragImage(
-    dragImage,
-    Math.max(0, Math.min(dragImageRect.width, event.clientX - offsetSourceRect.left)),
-    Math.max(0, Math.min(dragImageRect.height, event.clientY - offsetSourceRect.top)),
-  );
+  if (dragPreview) {
+    positionDragPreview(pointerReorder, event.clientX, event.clientY, true);
+    const nativeDragImage = createTransparentDragImage();
+    event.dataTransfer.setDragImage(nativeDragImage, 0, 0);
+    requestAnimationFrame(() => nativeDragImage.remove());
+  } else {
+    const dragImageRect = dragImage.getBoundingClientRect();
+    const offsetSourceRect = dragImageOffsetSource.getBoundingClientRect();
+    event.dataTransfer.setDragImage(
+      dragImage,
+      Math.max(0, Math.min(dragImageRect.width, event.clientX - offsetSourceRect.left)),
+      Math.max(0, Math.min(dragImageRect.height, event.clientY - offsetSourceRect.top)),
+    );
+  }
   requestAnimationFrame(() => {
-    if (pointerReorder !== null && pointerReorder.item === item) item.classList.add("is-dragging");
+    if (pointerReorder !== null && pointerReorder.item === item) {
+      item.classList.add("is-dragging");
+      dragPreview?.classList.add("is-drag-preview-active");
+    }
   });
   container.classList.add("is-reordering");
   handle?.setAttribute("aria-pressed", "true");
   announceReorder(getReorderPositionMessage(pointerReorder));
+  return true;
 }
 
 function handleReorderDragOver(event) {
@@ -171,30 +190,59 @@ function handleReorderDragOver(event) {
   if (!session || session.container !== event.currentTarget) return;
   event.preventDefault();
   event.dataTransfer.dropEffect = "move";
+  positionDragPreview(session, event.clientX, event.clientY);
   autoScrollReorderContainer(event, session.config.scrollContainer);
-  const targetIndex = getReorderHitIndex(session, event.clientX, event.clientY);
-  if (targetIndex < 0 || targetIndex === session.targetIndex) return;
-  session.targetIndex = targetIndex;
-  updateReorderTransforms(session);
-  announceReorder(getPointerReorderPositionMessage(session));
+  session.pendingPointerX = event.clientX;
+  session.pendingPointerY = event.clientY;
+  if (!session.reorderFrame) {
+    session.reorderFrame = requestAnimationFrame(() => processPointerReorderFrame(session));
+  }
 }
 
 function handleReorderDrop(event) {
-  if (!pointerReorder || pointerReorder.container !== event.currentTarget) return;
+  const session = pointerReorder;
+  if (!session || session.container !== event.currentTarget) return;
   event.preventDefault();
+  session.pendingPointerX = event.clientX;
+  session.pendingPointerY = event.clientY;
+  positionDragPreview(session, event.clientX, event.clientY, true);
+  processPointerReorderFrame(session, true);
   suppressReorderClickUntil = Date.now() + 400;
   finishPointerReorder();
+}
+
+function processPointerReorderFrame(session, ignoreCooldown = false) {
+  if (session.reorderFrame) cancelAnimationFrame(session.reorderFrame);
+  session.reorderFrame = 0;
+  if (pointerReorder !== session) return;
+  const targetIndex = getReorderHitIndex(session, session.pendingPointerX, session.pendingPointerY);
+  const items = getReorderItems(session.container, session.config);
+  const currentIndex = items.indexOf(session.item);
+  if (targetIndex < 0 || targetIndex === currentIndex) return;
+  const now = Date.now();
+  if (!ignoreCooldown && now - session.lastReorderAt < 90) return;
+  if (!hasCrossedReorderThreshold(
+    items[currentIndex].getBoundingClientRect(),
+    items[targetIndex].getBoundingClientRect(),
+    session.pendingPointerX,
+    session.pendingPointerY,
+  )) return;
+  animatePointerReorderToIndex(session, targetIndex);
+  session.lastReorderAt = now;
+  announceReorder(getPointerReorderPositionMessage(session));
 }
 
 function finishPointerReorder() {
   const session = pointerReorder;
   if (!session) return;
   pointerReorder = null;
-  clearReorderSessionUi(session);
-  const visibleIds = reorderIdsByIndex(session.originalIds, session.itemIndex, session.targetIndex);
-  const orderedIds = session.config.preserveHiddenPositions
-    ? mergeVisibleOrder(session.fullIds, visibleIds)
-    : [...visibleIds, ...session.fullIds.filter((id) => !visibleIds.includes(id))];
+  cancelPointerReorderFrames(session);
+  const orderedIds = getCommitReorderIds(session);
+  settleDragPreview(session, session.item.getBoundingClientRect());
+  clearReorderSessionUi(session, {
+    keepDraggedItem: Boolean(session.dragPreview),
+    preserveMotion: true,
+  });
   if (arraysEqual(orderedIds, session.fullIds)) {
     announceReorder(t("顺序未改变"));
     if (session.focusOnComplete && session.handle?.isConnected) session.handle.focus();
@@ -207,7 +255,14 @@ function cancelPointerReorder() {
   const session = pointerReorder;
   if (!session) return false;
   pointerReorder = null;
-  clearReorderSessionUi(session);
+  cancelPointerReorderFrames(session);
+  const originalRect = session.itemRects[session.itemIndex];
+  animateReorderDom(session.container, session.config, session.originalIds, session.item);
+  settleDragPreview(session, originalRect);
+  clearReorderSessionUi(session, {
+    keepDraggedItem: Boolean(session.dragPreview),
+    preserveMotion: true,
+  });
   announceReorder(t("已取消排序"));
   if (session.focusOnComplete && session.handle?.isConnected) session.handle.focus();
   return true;
@@ -311,17 +366,28 @@ function cancelReorderIn(container) {
   if (keyboardReorder && container?.contains(keyboardReorder.container)) cancelKeyboardReorder();
 }
 
-function clearReorderSessionUi(session) {
-  session.item.classList.remove("is-dragging", "is-keyboard-reordering");
+function clearReorderSessionUi(session, { keepDraggedItem = false, preserveMotion = false } = {}) {
+  if (!keepDraggedItem) session.item.classList.remove("is-dragging");
+  session.item.classList.remove("is-keyboard-reordering");
   session.container.classList.remove("is-reordering");
-  session.items?.forEach((item) => {
-    item.classList.remove("is-reorder-shifting");
-    item.style.removeProperty("transform");
-    item.style.removeProperty("z-index");
-  });
+  if (preserveMotion) {
+    window.setTimeout(() => {
+      if (!session.container.classList.contains("is-reordering")) clearReorderItemMotion(session.items);
+    }, 380);
+  } else {
+    clearReorderItemMotion(session.items);
+  }
   session.handle?.setAttribute("aria-pressed", "false");
   session.lockedButtons?.forEach(([button, wasDisabled]) => {
     if (button.isConnected) button.disabled = wasDisabled;
+  });
+}
+
+function clearReorderItemMotion(items = []) {
+  items.forEach((item) => {
+    item.classList.remove("is-reorder-shifting");
+    item.style.removeProperty("transform");
+    item.style.removeProperty("z-index");
   });
 }
 
@@ -362,20 +428,19 @@ function finishDirectPointerGesture(event) {
   if (gesture.moved) suppressReorderClickUntil = Date.now() + 400;
 }
 
-function getSessionScrollDelta(session) {
-  return (session.config.scrollContainer?.scrollTop || 0) - session.scrollTop;
-}
-
 function getReorderHitIndex(session, clientX, clientY) {
-  const scrollDelta = getSessionScrollDelta(session);
-  const rects = session.itemRects.map((rect) => ({
-    left: rect.left,
-    right: rect.right,
-    top: rect.top - scrollDelta,
-    bottom: rect.bottom - scrollDelta,
-    width: rect.width,
-    height: rect.height,
-  }));
+  const items = getReorderItems(session.container, session.config);
+  const rects = items.map((item) => {
+    const rect = item.getBoundingClientRect();
+    return {
+      left: rect.left,
+      right: rect.right,
+      top: rect.top,
+      bottom: rect.bottom,
+      width: rect.width,
+      height: rect.height,
+    };
+  });
   const directHit = rects.findIndex((rect) => (
     clientX >= rect.left && clientX <= rect.right
     && clientY >= rect.top && clientY <= rect.bottom
@@ -395,31 +460,126 @@ function getReorderHitIndex(session, clientX, clientY) {
     .sort((first, second) => first.distance - second.distance)[0]?.index ?? -1;
 }
 
-function updateReorderTransforms(session) {
-  const { itemIndex, itemRects, targetIndex } = session;
-  session.items.forEach((item, index) => {
-    if (index === itemIndex) return;
-    let positionIndex = index;
-    if (itemIndex < targetIndex && index > itemIndex && index <= targetIndex) {
-      positionIndex = index - 1;
-    } else if (itemIndex > targetIndex && index < itemIndex && index >= targetIndex) {
-      positionIndex = index + 1;
-    }
-    item.classList.add("is-reorder-shifting");
-    if (positionIndex === index) {
-      item.style.transform = "translate(0, 0)";
-      return;
-    }
-    const from = itemRects[index];
-    const to = itemRects[positionIndex];
-    item.style.transform = `translate(${to.left - from.left}px, ${to.top - from.top}px)`;
+function hasCrossedReorderThreshold(currentRect, targetRect, clientX, clientY, threshold = 0.56) {
+  const currentCenterX = currentRect.left + currentRect.width / 2;
+  const currentCenterY = currentRect.top + currentRect.height / 2;
+  const targetCenterX = targetRect.left + targetRect.width / 2;
+  const targetCenterY = targetRect.top + targetRect.height / 2;
+  const directionX = targetCenterX - currentCenterX;
+  const directionY = targetCenterY - currentCenterY;
+  const distanceSquared = directionX ** 2 + directionY ** 2;
+  if (!distanceSquared) return false;
+  const pointerX = clientX - currentCenterX;
+  const pointerY = clientY - currentCenterY;
+  const progress = (pointerX * directionX + pointerY * directionY) / distanceSquared;
+  return progress >= threshold;
+}
+
+function animatePointerReorderToIndex(session, targetIndex) {
+  const items = getReorderItems(session.container, session.config);
+  const previousRects = new Map(items.map((item) => [item, item.getBoundingClientRect()]));
+  resetReorderMotion(session.container, items);
+  moveReorderItem(session.container, session.config, session.item, targetIndex);
+  playReorderFlip(session.container, session.config, previousRects, session.item);
+  session.items = getReorderItems(session.container, session.config);
+}
+
+function animateReorderDom(container, config, orderedIds, draggedItem = null) {
+  if (!container?.isConnected) return;
+  const items = getReorderItems(container, config);
+  const previousRects = new Map(items.map((item) => [item, item.getBoundingClientRect()]));
+  resetReorderMotion(container, items);
+  restoreReorderDom(container, config, orderedIds);
+  playReorderFlip(container, config, previousRects, draggedItem);
+}
+
+function resetReorderMotion(container, items) {
+  container.classList.add("is-reorder-measuring");
+  items.forEach((item) => {
+    item.classList.remove("is-reorder-shifting");
+    item.style.removeProperty("transform");
+    item.style.removeProperty("z-index");
   });
 }
 
+function playReorderFlip(container, config, previousRects, draggedItem) {
+  const nextItems = getReorderItems(container, config);
+  nextItems.forEach((item) => {
+    if (item === draggedItem) return;
+    const previousRect = previousRects.get(item);
+    if (!previousRect) return;
+    const nextRect = item.getBoundingClientRect();
+    item.style.transform = `translate3d(${previousRect.left - nextRect.left}px, ${previousRect.top - nextRect.top}px, 0)`;
+  });
+  void container.offsetWidth;
+  container.classList.remove("is-reorder-measuring");
+  nextItems.forEach((item) => {
+    if (item === draggedItem) return;
+    item.classList.add("is-reorder-shifting");
+    item.style.transform = "translate3d(0, 0, 0)";
+  });
+}
+
+function createTransparentDragImage() {
+  const image = document.createElement("div");
+  image.className = "native-drag-image";
+  document.body.append(image);
+  return image;
+}
+
+function positionDragPreview(session, clientX, clientY, immediate = false) {
+  const preview = session.dragPreview;
+  if (!preview) return;
+  session.pendingPointerX = clientX;
+  session.pendingPointerY = clientY;
+  if (immediate) {
+    if (session.previewFrame) cancelAnimationFrame(session.previewFrame);
+    session.previewFrame = 0;
+    applyDragPreviewPosition(session);
+    return;
+  }
+  if (!session.previewFrame) {
+    session.previewFrame = requestAnimationFrame(() => {
+      session.previewFrame = 0;
+      if (pointerReorder === session) applyDragPreviewPosition(session);
+    });
+  }
+}
+
+function applyDragPreviewPosition(session) {
+  const preview = session.dragPreview;
+  if (!preview) return;
+  preview.style.setProperty("--drag-x", `${session.pendingPointerX - session.pointerOffsetX}px`);
+  preview.style.setProperty("--drag-y", `${session.pendingPointerY - session.pointerOffsetY}px`);
+}
+
+function cancelPointerReorderFrames(session) {
+  if (session.previewFrame) cancelAnimationFrame(session.previewFrame);
+  if (session.reorderFrame) cancelAnimationFrame(session.reorderFrame);
+  session.previewFrame = 0;
+  session.reorderFrame = 0;
+}
+
+function settleDragPreview(session, targetRect) {
+  const preview = session.dragPreview;
+  if (!preview) return;
+  preview.classList.remove("is-drag-preview-active");
+  preview.classList.add("is-drag-preview-settling");
+  preview.style.setProperty("--drag-x", `${targetRect.left}px`);
+  preview.style.setProperty("--drag-y", `${targetRect.top}px`);
+  const finish = () => {
+    preview.remove();
+    session.item.classList.remove("is-dragging");
+  };
+  preview.addEventListener("transitionend", finish, { once: true });
+  window.setTimeout(finish, 380);
+}
+
 function getPointerReorderPositionMessage(session) {
+  const position = getReorderItems(session.container, session.config).indexOf(session.item) + 1;
   return t("reorderPosition", {
-    position: session.targetIndex + 1,
-    count: session.items.length,
+    position,
+    count: getReorderItems(session.container, session.config).length,
     kind: session.config.kind,
   });
 }
@@ -510,7 +670,11 @@ async function saveReorder(session, orderedIds) {
   const buttonStates = setReorderContainerBusy(session.container, true);
   try {
     await session.config.commit(orderedIds);
-    renderApp();
+    if (session.config.renderAfterCommit === false) {
+      restoreReorderDom(session.container, session.config, orderedIds);
+    } else {
+      renderApp();
+    }
     announceReorder(t("排序已保存"));
     if (session.focusOnComplete) focusReorderHandle(session.config.kind, session.itemId);
   } catch (error) {
@@ -581,6 +745,7 @@ export {
   configureReorder,
   configureReorderContainer,
   createReorderHandle,
+  hasCrossedReorderThreshold,
   mergeVisibleOrder,
   reorderIdsByIndex,
   reorderLatestItems,

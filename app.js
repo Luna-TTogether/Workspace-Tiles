@@ -41,11 +41,16 @@ import {
 } from "./backup.js";
 import {
   STORAGE_KEY,
+  UI_STORAGE_KEY,
   getState,
+  getUiState,
   getWorkspace,
   initializeState,
+  initializeUiState,
   loadStateForUpdate,
   normalizeState,
+  normalizeTileSize,
+  saveExpandedWorkspaceId,
   saveState,
   setState,
 } from "./state.js";
@@ -79,6 +84,14 @@ let activeWorkspaceId = null;
 let previewPages = {};
 let previewWheelLocks = {};
 let managementActiveTab = "export";
+let expandedTransitionPending = false;
+const tileSizeSavePending = new Set();
+
+const TILE_PAGE_SIZES = {
+  small: 4,
+  medium: 8,
+  large: 16,
+};
 
 configureReorder({ render });
 configureForms({
@@ -135,19 +148,39 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 getChromeApi()?.storage?.onChanged?.addListener((changes, areaName) => {
-  if (areaName !== "local" || !changes[STORAGE_KEY]) return;
-  const nextState = normalizeState(changes[STORAGE_KEY].newValue);
-  if (JSON.stringify(nextState) === JSON.stringify(getState())) return;
-  setState(nextState);
-  render();
+  if (areaName !== "local") return;
+  if (changes[STORAGE_KEY]) {
+    const nextState = normalizeState(changes[STORAGE_KEY].newValue);
+    if (JSON.stringify(nextState) !== JSON.stringify(getState())) {
+      setState(nextState);
+      render();
+    }
+    if (activeWorkspaceId && !getWorkspace(activeWorkspaceId)) {
+      closeModal({ restoreFocus: false });
+      void persistExpandedWorkspaceId(null);
+    }
+  }
+  if (changes[UI_STORAGE_KEY] && changes[UI_STORAGE_KEY].newValue?.expandedWorkspaceId === null) {
+    if (getCurrentModal()?.dialog.classList.contains("workspace-expanded-dialog")) {
+      void closeWorkspaceDialog(activeWorkspaceId);
+    }
+  }
 });
 
 async function init() {
   await i18n.init();
   renderManagementEntry();
   await initializeState();
+  await initializeUiState();
   render();
-  if (new URLSearchParams(window.location.search).get("createWorkspace") === "1") {
+  const createWorkspaceRequested = new URLSearchParams(window.location.search).get("createWorkspace") === "1";
+  const restoredWorkspaceId = getUiState().expandedWorkspaceId;
+  if (!createWorkspaceRequested && restoredWorkspaceId && getWorkspace(restoredWorkspaceId)) {
+    requestAnimationFrame(() => openWorkspaceDialog(restoredWorkspaceId, null, { restore: true }));
+  } else if (restoredWorkspaceId) {
+    void persistExpandedWorkspaceId(null);
+  }
+  if (createWorkspaceRequested) {
     window.history.replaceState(null, "", window.location.pathname);
     requestAnimationFrame(() => openWorkspaceForm());
   }
@@ -499,19 +532,33 @@ function render() {
     kind: "workspace",
     itemSelector: ".workspace-tile[data-reorder-id]",
     fixedEndSelector: ".add-workspace-tile",
+    renderAfterCommit: false,
     commit: commitWorkspaceOrder,
   });
+  syncExpandedSourceTile();
+}
+
+function syncExpandedSourceTile() {
+  grid.querySelectorAll(".workspace-tile.is-animation-source").forEach((tile) => {
+    tile.classList.remove("is-animation-source");
+  });
+  if (!activeWorkspaceId || !getCurrentModal()?.dialog.classList.contains("workspace-expanded-dialog")) return;
+  Array.from(grid.querySelectorAll(".workspace-tile"))
+    .find((tile) => tile.dataset.workspaceId === activeWorkspaceId)
+    ?.classList.add("is-animation-source");
 }
 
 function renderWorkspaceTile(workspace) {
   const node = tileTemplate.content.firstElementChild.cloneNode(true);
   node.dataset.workspaceId = workspace.id;
+  node.dataset.size = normalizeTileSize(workspace.tileSize);
   const sitesFace = node.querySelector(".workspace-sites-face");
   const noteFace = node.querySelector(".workspace-note-face");
   const tileBody = node.querySelector(".tile-body");
   const title = node.querySelector(".workspace-open-button");
   const noteTitle = node.querySelector(".workspace-note-title");
   const count = node.querySelector(".workspace-site-meta");
+  const countBadges = node.querySelectorAll(".workspace-site-count-badge");
   const preview = node.querySelector(".favicon-preview");
   const openAllButton = node.querySelector(".open-all-button");
   const openWorkspaceButtons = node.querySelectorAll(".open-workspace-button");
@@ -528,10 +575,14 @@ function renderWorkspaceTile(workspace) {
   title.title = t("查看便签");
   noteTitle.textContent = workspace.name;
   noteTitle.title = t("查看网站");
-  noteFace.querySelector(".note-card-meta").textContent = t("便签");
   const siteCountLabel = workspace.sites.length > 0 ? t("siteCount", { count: workspace.sites.length }) : t("空工作区");
-  count.textContent = `${siteCountLabel} · ${t("查看便签")}`;
-  count.hidden = false;
+  count.textContent = "";
+  count.hidden = true;
+  countBadges.forEach((badge) => {
+    badge.textContent = String(workspace.sites.length);
+    badge.ariaLabel = siteCountLabel;
+    badge.title = siteCountLabel;
+  });
   openAllButton.hidden = workspace.sites.length === 0;
 
   openAllButton.title = t("打开全部");
@@ -556,7 +607,7 @@ function renderWorkspaceTile(workspace) {
     const addSiteButton = createAddSitePreviewButton(workspace.id);
     preview.append(wrapPreviewItem(addSiteButton, { fixed: true }));
   } else {
-    const pageSize = 16;
+    const pageSize = TILE_PAGE_SIZES[node.dataset.size];
     const pageCount = Math.ceil(workspace.sites.length / pageSize);
     const currentPage = Math.min(previewPages[workspace.id] || 0, pageCount - 1);
     const pageSites = workspace.sites.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
@@ -583,6 +634,7 @@ function renderWorkspaceTile(workspace) {
       fixedEndSelector: ".favicon-preview-cell.is-fixed-preview-item",
       getFullIds: () => workspace.sites.map((site) => site.id),
       preserveHiddenPositions: true,
+      renderAfterCommit: false,
       commit: (orderedIds) => commitSiteOrder(workspace.id, orderedIds),
     });
     if (pageCount > 1) {
@@ -654,13 +706,13 @@ function handlePreviewWheel(event, workspaceId, currentPage, pageCount) {
 
   previewPages[workspaceId] = nextPage;
   previewWheelLocks[workspaceId] = true;
-  render();
+  renderWorkspaceTileInPlace(workspaceId);
   window.setTimeout(() => {
     previewWheelLocks[workspaceId] = false;
   }, 420);
 }
 
-function createAddSitePreviewButton(workspaceId) {
+function createAddSitePreviewButton(workspaceId, onAction = null) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "favicon-mini add-site-preview";
@@ -678,7 +730,8 @@ function createAddSitePreviewButton(workspaceId) {
   `;
   button.addEventListener("click", (event) => {
     event.stopPropagation();
-    openSiteForm(workspaceId, null, event.currentTarget);
+    if (onAction) onAction(event);
+    else openSiteForm(workspaceId, null, event.currentTarget);
   });
   return button;
 }
@@ -730,14 +783,25 @@ function renderPreviewPagination(workspaceId, currentPage, pageCount) {
 
 function changePreviewPage(workspaceId, nextPage, focusAction = "") {
   previewPages[workspaceId] = nextPage;
-  render();
+  renderWorkspaceTileInPlace(workspaceId, focusAction);
+}
 
-  if (!focusAction) return;
-  requestAnimationFrame(() => {
-    const tile = Array.from(grid.querySelectorAll(".workspace-tile"))
-      .find((item) => item.dataset.workspaceId === workspaceId);
-    tile?.querySelector(`[data-page-action="${focusAction}"]`)?.focus();
-  });
+function renderWorkspaceTileInPlace(workspaceId, focusAction = "") {
+  const workspace = getWorkspace(workspaceId);
+  const currentTile = grid.querySelector(`.workspace-tile[data-workspace-id="${CSS.escape(workspaceId)}"]`);
+  if (!workspace || !currentTile) return;
+
+  const nextTile = renderWorkspaceTile(workspace);
+  if (currentTile.classList.contains("is-animation-source")) {
+    nextTile.classList.add("is-animation-source");
+  }
+  currentTile.replaceWith(nextTile);
+
+  if (focusAction) {
+    requestAnimationFrame(() => {
+      nextTile.querySelector(`[data-page-action="${focusAction}"]`)?.focus();
+    });
+  }
 }
 
 function renderAddWorkspaceTile() {
@@ -779,40 +843,86 @@ function createFaviconButton(site, className) {
   return button;
 }
 
-function openWorkspaceDialog(workspaceId, returnFocus = null) {
-  activeWorkspaceId = workspaceId;
+function openWorkspaceDialog(workspaceId, returnFocus = null, { restore = false } = {}) {
+  if (expandedTransitionPending) return;
   const workspace = getWorkspace(workspaceId);
   if (!workspace) return;
+  activeWorkspaceId = workspaceId;
 
-  const dialog = createDialog();
+  const dialog = createDialog("workspace-expanded-dialog");
+  dialog.dataset.workspaceId = workspace.id;
   const title = document.createElement("div");
   title.className = "dialog-title";
-  title.innerHTML = `<h1></h1><p></p>`;
-  title.querySelector("h1").textContent = workspace.name;
-  title.querySelector("p").textContent = t("siteCount", { count: workspace.sites.length });
+  title.innerHTML = `
+    <h1>
+      <span class="workspace-expanded-title-text"></span>
+      <span class="workspace-site-count-badge"></span>
+    </h1>
+  `;
+  title.querySelector(".workspace-expanded-title-text").textContent = workspace.name;
+  const titleCountBadge = title.querySelector(".workspace-site-count-badge");
+  const siteCountLabel = workspace.sites.length > 0
+    ? t("siteCount", { count: workspace.sites.length })
+    : t("空工作区");
+  titleCountBadge.textContent = String(workspace.sites.length);
+  titleCountBadge.ariaLabel = siteCountLabel;
+  titleCountBadge.title = siteCountLabel;
 
-  const openButton = createOpenAllIconButton((event) => openAllMenu(event.currentTarget, workspace));
-  const moreButton = createMoreIconButton((event) => openWorkspaceMoreMenu(event.currentTarget, workspace));
-  const closeButton = createIconButton(t("关闭"), "M6 6l12 12M18 6 6 18", closeModal);
+  const noteFace = createExpandedWorkspaceNote(dialog, workspace);
+  const requestClose = () => runAfterDiscardNote(
+    noteFace,
+    () => closeWorkspaceDialog(workspace.id),
+    noteFace.querySelector(".workspace-note-textarea"),
+  );
+  const openButton = createOpenAllIconButton((event) => {
+    runNoteCardAction(noteFace, () => openAllMenu(event.currentTarget, workspace), event.currentTarget);
+  });
+  openButton.hidden = workspace.sites.length === 0;
+  const moreButton = createMoreIconButton((event) => {
+    runNoteCardAction(noteFace, () => openWorkspaceMoreMenu(event.currentTarget, workspace), event.currentTarget);
+  });
+  const closeButton = createIconButton(t("关闭"), "M6 6l12 12M18 6 6 18", requestClose);
+  closeButton.classList.add("close-expanded-workspace-button");
 
   const header = dialog.querySelector(".dialog-header");
   header.append(title, openButton, moreButton, closeButton);
 
   const content = dialog.querySelector(".dialog-content");
+  content.classList.add("workspace-expanded-content");
+  const sitesPane = document.createElement("section");
+  sitesPane.className = "workspace-expanded-sites";
+  sitesPane.setAttribute("aria-label", t("网站"));
+  const sitesScroller = document.createElement("div");
+  sitesScroller.className = "workspace-expanded-sites-scroll";
+  sitesScroller.tabIndex = 0;
+  sitesScroller.ariaLabel = t("网站");
+  sitesPane.append(sitesScroller);
+  content.append(sitesPane, noteFace);
+
   if (workspace.sites.length === 0) {
-    content.append(createEmptyState({
+    sitesScroller.append(createEmptyState({
       title: t("这个工作区还没有网站"),
       description: t("添加第一个网站，之后就可以从新标签页快速打开。"),
       actionLabel: t("添加网站"),
-      onAction: (event) => openSiteForm(workspace.id, null, event.currentTarget),
+      onAction: (event) => runNoteCardAction(
+        noteFace,
+        () => openSiteForm(workspace.id, null, event.currentTarget),
+        event.currentTarget,
+      ),
       compact: true,
     }));
   } else {
     const siteGrid = document.createElement("div");
-    siteGrid.className = "site-grid";
-    const addSiteButton = createAddSitePreviewButton(workspace.id);
+    siteGrid.className = "site-grid workspace-expanded-site-grid";
+    const addSiteButton = createAddSitePreviewButton(workspace.id, (event) => {
+      runNoteCardAction(
+        noteFace,
+        () => openSiteForm(workspace.id, null, event.currentTarget),
+        event.currentTarget,
+      );
+    });
     siteGrid.append(addSiteButton);
-    content.append(siteGrid);
+    sitesScroller.append(siteGrid);
 
     const batchSize = 64;
     let renderedSiteCount = 0;
@@ -821,7 +931,7 @@ function openWorkspaceDialog(workspaceId, returnFocus = null) {
     const appendNextBatch = () => {
       const nextSites = workspace.sites.slice(renderedSiteCount, renderedSiteCount + batchSize);
       const fragment = document.createDocumentFragment();
-      nextSites.forEach((site) => fragment.append(renderDialogSiteItem(workspace.id, site)));
+      nextSites.forEach((site) => fragment.append(renderDialogSiteItem(workspace.id, site, noteFace)));
       siteGrid.insertBefore(fragment, addSiteButton);
       renderedSiteCount += nextSites.length;
       requestAnimationFrame(updateScrollAffordance);
@@ -839,12 +949,12 @@ function openWorkspaceDialog(workspaceId, returnFocus = null) {
       commit: (orderedIds) => commitSiteOrder(workspace.id, orderedIds),
       ensureAll: appendAllBatches,
       getFullIds: () => workspace.sites.map((site) => site.id),
-      scrollContainer: content,
+      scrollContainer: sitesScroller,
     });
-    updateScrollAffordance = enableScrollAffordance(content);
-    content.addEventListener("scroll", () => {
+    updateScrollAffordance = enableScrollAffordance(sitesScroller);
+    sitesScroller.addEventListener("scroll", () => {
       updateScrollAffordance();
-      const distanceToBottom = content.scrollHeight - content.scrollTop - content.clientHeight;
+      const distanceToBottom = sitesScroller.scrollHeight - sitesScroller.scrollTop - sitesScroller.clientHeight;
       if (distanceToBottom < 180 && renderedSiteCount < workspace.sites.length) {
         appendNextBatch();
       }
@@ -852,19 +962,122 @@ function openWorkspaceDialog(workspaceId, returnFocus = null) {
     requestAnimationFrame(updateScrollAffordance);
   }
 
-  showModal(dialog, null, { returnFocus });
+  showExpandedWorkspaceDialog(dialog, workspace, returnFocus, { restore, onDismiss: requestClose });
 }
 
-function renderDialogSiteItem(workspaceId, site) {
+function createExpandedWorkspaceNote(dialog, workspace) {
+  const noteFace = tileTemplate.content.querySelector(".workspace-note-face").cloneNode(true);
+  noteFace.className = "workspace-expanded-note";
+  noteFace.setAttribute("aria-label", t("便签"));
+  noteFace.removeAttribute("aria-hidden");
+  noteFace.removeAttribute("inert");
+  noteFace.querySelector(".note-accent")?.remove();
+  noteFace.querySelector(".note-card-header")?.remove();
+  noteFace.querySelector(".tile-actions")?.remove();
+  setupWorkspaceNote(dialog, noteFace, workspace, { onSaved: render });
+  return noteFace;
+}
+
+function supportsWorkspaceViewTransition() {
+  return typeof document.startViewTransition === "function"
+    && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+async function showExpandedWorkspaceDialog(dialog, workspace, returnFocus, { restore, onDismiss }) {
+  const sourceTile = Array.from(grid.querySelectorAll(".workspace-tile"))
+    .find((tile) => tile.dataset.workspaceId === workspace.id);
+
+  if (restore || !returnFocus || !sourceTile || !supportsWorkspaceViewTransition()) {
+    showModal(dialog, null, { returnFocus: returnFocus || sourceTile?.querySelector(".open-workspace-button"), onDismiss });
+    sourceTile?.classList.add("is-animation-source");
+  } else {
+    expandedTransitionPending = true;
+    sourceTile.style.viewTransitionName = "workspace-expand";
+    document.documentElement.dataset.workspaceTransition = "expand";
+    try {
+      const transition = document.startViewTransition(() => {
+        sourceTile.style.removeProperty("view-transition-name");
+        sourceTile.classList.add("is-animation-source");
+        showModal(dialog, null, { returnFocus, onDismiss });
+        dialog.style.viewTransitionName = "workspace-expand";
+      });
+      await transition.finished.catch(() => {});
+    } catch {
+      sourceTile.classList.add("is-animation-source");
+      if (backdrop.hidden) showModal(dialog, null, { returnFocus, onDismiss });
+    } finally {
+      sourceTile.style.removeProperty("view-transition-name");
+      dialog.style.removeProperty("view-transition-name");
+      delete document.documentElement.dataset.workspaceTransition;
+      expandedTransitionPending = false;
+    }
+  }
+
+  closeButtonAfterTransition(dialog);
+  if (!restore) void persistExpandedWorkspaceId(workspace.id);
+}
+
+function closeButtonAfterTransition(dialog) {
+  requestAnimationFrame(() => dialog.querySelector(".close-expanded-workspace-button")?.focus({ preventScroll: true }));
+}
+
+async function closeWorkspaceDialog(workspaceId) {
+  if (expandedTransitionPending) return;
+  const currentModal = getCurrentModal();
+  const dialog = currentModal?.dialog;
+  const sourceTile = Array.from(grid.querySelectorAll(".workspace-tile"))
+    .find((tile) => tile.dataset.workspaceId === workspaceId);
+  const returnFocus = sourceTile?.querySelector(".open-workspace-button");
+
+  if (dialog?.classList.contains("workspace-expanded-dialog") && sourceTile && supportsWorkspaceViewTransition()) {
+    expandedTransitionPending = true;
+    dialog.style.viewTransitionName = "workspace-expand";
+    document.documentElement.dataset.workspaceTransition = "collapse";
+    try {
+      const transition = document.startViewTransition(() => {
+        dialog.style.removeProperty("view-transition-name");
+        closeModal({ restoreFocus: false });
+        sourceTile.classList.remove("is-animation-source");
+        sourceTile.style.viewTransitionName = "workspace-expand";
+      });
+      await transition.finished.catch(() => {});
+    } catch {
+      if (!backdrop.hidden) closeModal({ restoreFocus: false });
+      sourceTile.classList.remove("is-animation-source");
+    } finally {
+      dialog.style.removeProperty("view-transition-name");
+      sourceTile.style.removeProperty("view-transition-name");
+      delete document.documentElement.dataset.workspaceTransition;
+      expandedTransitionPending = false;
+    }
+    returnFocus?.focus({ preventScroll: true });
+  } else {
+    closeModal({ restoreFocus: false });
+    sourceTile?.classList.remove("is-animation-source");
+    returnFocus?.focus({ preventScroll: true });
+  }
+
+  void persistExpandedWorkspaceId(null);
+}
+
+function renderDialogSiteItem(workspaceId, site, noteFace = null) {
   const wrapper = document.createElement("div");
   wrapper.className = "site-card";
   wrapper.dataset.reorderId = site.id;
 
   const siteButton = createFaviconButton(site, "favicon-mini dialog-site-item");
   siteButton.title = site.url;
-  siteButton.addEventListener("click", () => openUrl(site.url));
+  siteButton.addEventListener("click", () => {
+    if (noteFace) runNoteCardAction(noteFace, () => openUrl(site.url), siteButton);
+    else openUrl(site.url);
+  });
   siteButton.addEventListener("contextmenu", (event) => {
-    openSiteContextMenu(event, workspaceId, site, siteButton);
+    if (noteFace) {
+      event.preventDefault();
+      runNoteCardAction(noteFace, () => openSiteContextMenu(event, workspaceId, site, siteButton), siteButton);
+    } else {
+      openSiteContextMenu(event, workspaceId, site, siteButton);
+    }
   });
 
   wrapper.append(siteButton);
@@ -951,7 +1164,10 @@ function deleteWorkspace(workspaceId, returnFocus = null) {
         throw error;
       }
     },
-    onSuccess: render,
+    onSuccess: () => {
+      render();
+      if (getUiState().expandedWorkspaceId === workspaceId) void persistExpandedWorkspaceId(null);
+    },
     successMessage: t("工作区已删除"),
     returnFocus,
   });
@@ -1098,23 +1314,66 @@ function openAllMenu(anchor, workspace) {
 function openWorkspaceMoreMenu(anchor, workspace) {
   closeMenu({ restoreFocus: false });
 
+  const workspaceTile = anchor.closest(".workspace-tile");
+  const showingNote = workspaceTile?.classList.contains("is-note") || false;
+  const faceAction = workspaceTile
+    ? `<button type="button" role="menuitem" data-action="toggle-face">${t(showingNote ? "查看网站" : "查看便签")}</button>`
+    : "";
   const rect = anchor.getBoundingClientRect();
   const menu = document.createElement("div");
   menu.className = "open-menu workspace-more-menu";
   menu.setAttribute("role", "menu");
+  const workspaceSectionId = createId("workspace-menu-section");
+  const sizeSectionId = createId("workspace-size-section");
   menu.innerHTML = `
-    <button type="button" role="menuitem" data-action="rename">${t("重命名")}</button>
-    <button type="button" role="menuitem" data-action="delete" class="danger-menu-item">${t("删除")}</button>
+    <div class="menu-section" role="group" aria-labelledby="${workspaceSectionId}">
+      <div class="menu-section-label" id="${workspaceSectionId}">${t("工作区")}</div>
+      ${faceAction}
+      <button type="button" role="menuitem" data-action="rename">${t("重命名工作区")}</button>
+    </div>
+    <div class="menu-section" role="group" aria-labelledby="${sizeSectionId}">
+      <div class="menu-section-label" id="${sizeSectionId}">${t("卡片大小")}</div>
+      ${["small", "medium", "large"].map((size) => `
+        <button type="button" role="menuitemradio" aria-checked="${workspace.tileSize === size}" data-size="${size}"${tileSizeSavePending.has(workspace.id) ? " disabled" : ""}>
+          <span>${t(size === "small" ? "小" : size === "medium" ? "中" : "大")}</span>
+          <svg class="menu-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg>
+        </button>
+      `).join("")}
+    </div>
+    <div class="menu-divider" role="separator"></div>
+    <button type="button" role="menuitem" data-action="delete" class="danger-menu-item">${t("删除工作区")}</button>
   `;
 
-  menu.style.top = `${Math.min(rect.bottom + 8, window.innerHeight - 96)}px`;
-  menu.style.left = `${Math.min(rect.left - 116, window.innerWidth - 180)}px`;
+  menu.style.top = `${Math.max(8, Math.min(rect.bottom + 8, window.innerHeight - 320))}px`;
+  menu.style.left = `${Math.max(8, Math.min(rect.right - 200, window.innerWidth - 208))}px`;
 
   menu.addEventListener("click", (event) => {
     const action = event.target?.dataset?.action;
+    const sizeButton = event.target.closest("[data-size]");
+    if (sizeButton) {
+      const isCurrentSize = sizeButton.getAttribute("aria-checked") === "true";
+      closeMenu({ restoreFocus: isCurrentSize });
+      if (isCurrentSize) return;
+      void updateWorkspaceTileSize(workspace.id, sizeButton.dataset.size);
+      return;
+    }
+    if (action === "toggle-face" && workspaceTile) {
+      closeMenu({ restoreFocus: false });
+      const targetFace = showingNote ? "sites" : "note";
+      flipWorkspaceCard(workspaceTile, workspace.id, targetFace, event.detail === 0);
+      return;
+    }
     if (action === "rename") {
       closeMenu({ restoreFocus: false });
-      openWorkspaceForm(workspace, anchor);
+      let renameReturnFocus = anchor;
+      if (getCurrentModal()?.dialog.classList.contains("workspace-expanded-dialog")) {
+        const sourceTile = Array.from(grid.querySelectorAll(".workspace-tile"))
+          .find((tile) => tile.dataset.workspaceId === workspace.id);
+        sourceTile?.classList.remove("is-animation-source");
+        renameReturnFocus = sourceTile?.querySelector(".more-workspace-button") || anchor;
+        void persistExpandedWorkspaceId(null);
+      }
+      openWorkspaceForm(workspace, renameReturnFocus);
     }
     if (action === "delete") {
       closeMenu({ restoreFocus: false });
@@ -1123,6 +1382,45 @@ function openWorkspaceMoreMenu(anchor, workspace) {
   });
 
   showMenu(menu, anchor);
+}
+
+async function updateWorkspaceTileSize(workspaceId, requestedSize) {
+  if (tileSizeSavePending.has(workspaceId)) return;
+  const tileSize = normalizeTileSize(requestedSize);
+  const previousState = getState();
+  tileSizeSavePending.add(workspaceId);
+  try {
+    const latestState = await loadStateForUpdate();
+    const workspace = latestState.workspaces.find((item) => item.id === workspaceId);
+    if (!workspace) throw new Error("Workspace not found");
+    workspace.tileSize = tileSize;
+    setState(latestState);
+    previewPages[workspaceId] = 0;
+    render();
+    await saveState();
+    requestAnimationFrame(() => {
+      const expandedMenuButton = getCurrentModal()?.dialog.querySelector(".more-workspace-button");
+      const tileMenuButton = Array.from(grid.querySelectorAll(".workspace-tile"))
+        .find((tile) => tile.dataset.workspaceId === workspaceId)
+        ?.querySelector(".more-workspace-button");
+      (expandedMenuButton || tileMenuButton)?.focus();
+    });
+    showToast(t("卡片大小已更新"), "success");
+  } catch {
+    setState(previousState);
+    render();
+    showToast(t("无法保存卡片大小。请重试。"), "error");
+  } finally {
+    tileSizeSavePending.delete(workspaceId);
+  }
+}
+
+async function persistExpandedWorkspaceId(workspaceId) {
+  try {
+    await saveExpandedWorkspaceId(workspaceId);
+  } catch {
+    showToast(t("无法保存展开状态。请重试。"), "error");
+  }
 }
 
 function openUrl(url) {

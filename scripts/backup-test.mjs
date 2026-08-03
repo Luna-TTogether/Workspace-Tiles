@@ -7,6 +7,7 @@ const sourceState = {
     name: "工作",
     note: "- [ ] 检查报表",
     cardFace: "note",
+    tileSize: "medium",
     sites: [
       { id: "site-1", name: "OpenAI", url: "https://openai.com/" },
       { id: "site-2", name: "书签工具", url: "javascript:void(0)" },
@@ -18,6 +19,7 @@ const backup = createBackup(sourceState, "2026-07-28T10:49:10.000Z", "0.1.1");
 assert.equal(backup.format, "workspace-tiles-backup");
 assert.equal(backup.schemaVersion, 1);
 assert.equal(backup.data.workspaces[0].sites.length, 2);
+assert.equal("expandedWorkspaceId" in backup.data, false);
 
 const validated = validateBackupData(backup);
 assert.equal(validated.workspaceCount, 1);
@@ -25,13 +27,16 @@ assert.equal(validated.siteCount, 2);
 assert.equal(validated.state.workspaces[0].name, "工作");
 assert.equal(validated.state.workspaces[0].note, "- [ ] 检查报表");
 assert.equal(validated.state.workspaces[0].cardFace, "note");
+assert.equal(validated.state.workspaces[0].tileSize, "medium");
 
 const legacyBackup = structuredClone(backup);
 delete legacyBackup.data.workspaces[0].note;
 delete legacyBackup.data.workspaces[0].cardFace;
+delete legacyBackup.data.workspaces[0].tileSize;
 const validatedLegacy = validateBackupData(legacyBackup);
 assert.equal(validatedLegacy.state.workspaces[0].note, "");
 assert.equal(validatedLegacy.state.workspaces[0].cardFace, "sites");
+assert.equal(validatedLegacy.state.workspaces[0].tileSize, "large");
 
 const emptyBackup = structuredClone(backup);
 emptyBackup.data.workspaces = [];

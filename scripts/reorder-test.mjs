@@ -4,7 +4,12 @@ globalThis.document = {
   getElementById() { return {}; },
 };
 
-const { mergeVisibleOrder, reorderIdsByIndex, reorderLatestItems } = await import("../reorder.js");
+const {
+  hasCrossedReorderThreshold,
+  mergeVisibleOrder,
+  reorderIdsByIndex,
+  reorderLatestItems,
+} = await import("../reorder.js");
 
 const initial = [
   { id: "a", name: "最新 A" },
@@ -39,4 +44,11 @@ assert.deepEqual(reorderIdsByIndex(["a", "b", "c", "d"], 0, 2), ["b", "c", "a", 
 assert.deepEqual(reorderIdsByIndex(["a", "b", "c", "d"], 3, 1), ["a", "d", "b", "c"]);
 assert.deepEqual(reorderIdsByIndex(["a", "b"], 1, 1), ["a", "b"]);
 
-console.log("排序测试通过：索引移动、分页重排、并发新增保留、并发删除兼容均符合预期。");
+const currentRect = { left: 0, top: 0, width: 100, height: 100 };
+const rightRect = { left: 120, top: 0, width: 100, height: 100 };
+assert.equal(hasCrossedReorderThreshold(currentRect, rightRect, 110, 50), false, "中心线附近保持原位置");
+assert.equal(hasCrossedReorderThreshold(currentRect, rightRect, 125, 50), true, "越过滞后阈值后才向右换位");
+assert.equal(hasCrossedReorderThreshold(rightRect, currentRect, 110, 50), false, "轻微回移不会立刻切回");
+assert.equal(hasCrossedReorderThreshold(rightRect, currentRect, 95, 50), true, "充分越过反向阈值后允许切回");
+
+console.log("排序测试通过：索引移动、分页重排、换位滞后阈值、并发新增保留和并发删除兼容均符合预期。");

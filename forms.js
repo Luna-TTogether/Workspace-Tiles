@@ -228,7 +228,7 @@ function openWorkspaceForm(workspace = null, returnFocus = null) {
           ...flattenSelectedBookmarks(bookmarkTree, selectedBookmarkIds),
           ...flattenSelectedTabs(openTabs, selectedOpenTabKeys),
         ];
-        getState().workspaces.push({ id: newWorkspaceId, name, sites });
+        getState().workspaces.push({ id: newWorkspaceId, name, tileSize: "large", sites });
       }
 
       await saveState();

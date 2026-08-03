@@ -3,7 +3,10 @@ import { createId, getChromeApi, getSiteFallbackName, normalizeUrl } from "./uti
 import { normalizeCardFace, normalizeNote } from "./workspace-notes.js";
 
 const STORAGE_KEY = "workspaceTilesState";
+const UI_STORAGE_KEY = "workspaceTilesUiState";
+const TILE_SIZES = new Set(["small", "medium", "large"]);
 let state = { workspaces: [] };
+let uiState = { expandedWorkspaceId: null };
 
 function getState() {
   return state;
@@ -26,6 +29,48 @@ function initializeState() {
     chromeApi.storage.local.get(STORAGE_KEY, (result) => {
       state = normalizeState(result[STORAGE_KEY]);
       resolve(state);
+    });
+  });
+}
+
+function getUiState() {
+  return uiState;
+}
+
+function initializeUiState() {
+  return new Promise((resolve) => {
+    const chromeApi = getChromeApi();
+    if (!chromeApi?.storage?.local) {
+      uiState = readLocalUiFallback();
+      resolve(uiState);
+      return;
+    }
+
+    chromeApi.storage.local.get(UI_STORAGE_KEY, (result) => {
+      uiState = normalizeUiState(result[UI_STORAGE_KEY]);
+      resolve(uiState);
+    });
+  });
+}
+
+function saveExpandedWorkspaceId(workspaceId) {
+  const nextUiState = normalizeUiState({ expandedWorkspaceId: workspaceId });
+  uiState = nextUiState;
+
+  return new Promise((resolve, reject) => {
+    const chromeApi = getChromeApi();
+    if (!chromeApi?.storage?.local) {
+      localStorage.setItem(UI_STORAGE_KEY, JSON.stringify(nextUiState));
+      resolve(uiState);
+      return;
+    }
+
+    chromeApi.storage.local.set({ [UI_STORAGE_KEY]: nextUiState }, () => {
+      if (chromeApi.runtime?.lastError) {
+        reject(new Error(chromeApi.runtime.lastError.message));
+        return;
+      }
+      resolve(uiState);
     });
   });
 }
@@ -78,6 +123,27 @@ function readLocalFallback() {
   }
 }
 
+function readLocalUiFallback() {
+  try {
+    return normalizeUiState(JSON.parse(localStorage.getItem(UI_STORAGE_KEY)));
+  } catch {
+    return { expandedWorkspaceId: null };
+  }
+}
+
+function normalizeTileSize(value) {
+  return TILE_SIZES.has(value) ? value : "large";
+}
+
+function normalizeUiState(value) {
+  const expandedWorkspaceId = typeof value?.expandedWorkspaceId === "string"
+    ? value.expandedWorkspaceId.trim()
+    : "";
+  return {
+    expandedWorkspaceId: expandedWorkspaceId || null,
+  };
+}
+
 function normalizeState(value) {
   if (!value || !Array.isArray(value.workspaces)) {
     return { workspaces: [] };
@@ -89,6 +155,7 @@ function normalizeState(value) {
       name: String(workspace.name || t("未命名工作区")).trim() || t("未命名工作区"),
       note: normalizeNote(workspace.note),
       cardFace: normalizeCardFace(workspace.cardFace),
+      tileSize: normalizeTileSize(workspace.tileSize),
       sites: Array.isArray(workspace.sites)
         ? workspace.sites.map((site) => normalizeSite(site)).filter(Boolean)
         : [],
@@ -115,12 +182,18 @@ function getWorkspace(workspaceId) {
 
 export {
   STORAGE_KEY,
+  UI_STORAGE_KEY,
   getState,
+  getUiState,
   getWorkspace,
   initializeState,
+  initializeUiState,
   loadStateForUpdate,
   normalizeSite,
   normalizeState,
+  normalizeTileSize,
+  normalizeUiState,
+  saveExpandedWorkspaceId,
   saveState,
   setState,
 };

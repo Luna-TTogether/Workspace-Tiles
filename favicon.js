@@ -138,6 +138,10 @@ async function loadFaviconBlob(url) {
   }
 }
 
+function canApplyFaviconResult(container, renderToken) {
+  return container.faviconRenderToken === renderToken;
+}
+
 function renderFavicon(container, site) {
   const renderToken = Symbol("favicon-render");
   container.faviconRenderToken = renderToken;
@@ -151,7 +155,7 @@ function renderFavicon(container, site) {
   if (!isHttpUrl(site?.url)) return;
 
   loadFaviconBlob(site.url).then((blob) => {
-    if (!blob || container.faviconRenderToken !== renderToken || !container.isConnected) return;
+    if (!blob || !canApplyFaviconResult(container, renderToken)) return;
 
     const image = document.createElement("img");
     const objectUrl = URL.createObjectURL(blob);
@@ -160,7 +164,7 @@ function renderFavicon(container, site) {
     image.hidden = true;
     image.addEventListener("load", () => {
       URL.revokeObjectURL(objectUrl);
-      if (container.faviconRenderToken !== renderToken) return;
+      if (!canApplyFaviconResult(container, renderToken)) return;
       image.hidden = false;
       fallback.hidden = true;
     }, { once: true });
@@ -177,6 +181,7 @@ export {
   FAVICON_DATABASE_NAME,
   FAVICON_STORE_NAME,
   MAX_CACHED_FAVICONS,
+  canApplyFaviconResult,
   getFaviconCacheKey,
   loadFaviconBlob,
   renderFavicon,
