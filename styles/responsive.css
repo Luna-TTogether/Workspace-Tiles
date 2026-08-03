@@ -70,6 +70,14 @@
     flex-basis: 100%;
   }
 
+  .dialog.small .dialog-header {
+    flex-wrap: nowrap;
+  }
+
+  .dialog.small .dialog-title {
+    flex-basis: auto;
+  }
+
   .dialog.bookmark-picker-dialog {
     width: min(100%, calc(100vw - 24px));
     height: min(720px, calc(100vh - 24px));

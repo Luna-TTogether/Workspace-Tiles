@@ -25,18 +25,13 @@ function openWorkspaceForm(workspace = null, returnFocus = null) {
   if (!isEditing) {
     header.append(createIconButton(t("关闭"), "M6 6l12 12M18 6 6 18", closeModal));
   }
-  let bookmarkTree = [];
-  let selectedBookmarkIds = new Set();
-  let openTabs = [];
-  let selectedOpenTabKeys = new Set();
-
   const form = document.createElement("form");
   form.className = "form";
   form.noValidate = true;
   form.innerHTML = `
     <div class="field">
       <label for="workspaceName">${t("工作区名称")}</label>
-      <input id="workspaceName" name="name" autocomplete="off" required maxlength="60" aria-describedby="workspaceNameError">
+      <input id="workspaceName" name="name" autocomplete="off" required maxlength="60" placeholder="${t("例如：设计工作")}" aria-describedby="workspaceNameError">
       <p class="field-error" id="workspaceNameError" role="status" hidden></p>
     </div>
   `;
@@ -58,143 +53,8 @@ function openWorkspaceForm(workspace = null, returnFocus = null) {
     }
   });
 
-  if (!isEditing) {
-    const importBlock = document.createElement("div");
-    importBlock.className = "bookmark-import-block";
-    importBlock.innerHTML = `
-      <div class="bookmark-import-heading">${t("从书签添加")}</div>
-      <div class="bookmark-import-selection">
-        <span class="bookmark-import-summary">${t("选择文件夹或网站")}</span>
-        <span class="bookmark-select-button-slot"></span>
-      </div>
-      <p class="bookmark-import-help">${t("所选文件夹中的网站将被平铺添加，不会保留原有文件夹结构。")}</p>
-      <p class="form-message error" role="status" hidden></p>
-    `;
-
-    const selectButton = createButton(t("选择书签"), null, {
-      variant: "secondary",
-      size: "small",
-      loadingText: t("读取中"),
-    });
-    selectButton.classList.add("bookmark-select-button");
-    importBlock.querySelector(".bookmark-select-button-slot").replaceWith(selectButton);
-    const summary = importBlock.querySelector(".bookmark-import-summary");
-    const error = importBlock.querySelector(".form-message");
-
-    const updateImportSummary = () => {
-      const count = selectedBookmarkIds.size;
-      summary.textContent = count > 0 ? t("selectedSiteCount", { count }) : t("选择文件夹或网站");
-      summary.classList.toggle("has-selection", count > 0);
-      const buttonLabel = count > 0 ? t("修改") : t("选择书签");
-      selectButton.dataset.defaultLabel = buttonLabel;
-      selectButton.querySelector(".button-label").textContent = buttonLabel;
-      selectButton.classList.toggle("is-compact", count > 0);
-    };
-
-    selectButton.addEventListener("click", async () => {
-      error.hidden = true;
-      setButtonLoading(selectButton, true);
-
-      try {
-        const granted = await requestBookmarksPermission();
-        if (!granted) {
-          error.textContent = t("未获得书签访问权限，你仍可手动添加网站。");
-          error.hidden = false;
-          return;
-        }
-
-        const nextBookmarkTree = await loadBookmarksTree();
-        const availableBookmarkIds = new Set(nextBookmarkTree.flatMap((node) => getDescendantBookmarkIds(node)));
-        const availableSelection = new Set(
-          Array.from(selectedBookmarkIds).filter((id) => availableBookmarkIds.has(id)),
-        );
-        openBookmarkPicker(nextBookmarkTree, availableSelection, {
-          onCancel: () => showModal(dialog, () => selectButton.focus()),
-          onConfirm: (nextSelection) => {
-            bookmarkTree = nextBookmarkTree;
-            selectedBookmarkIds = nextSelection;
-            updateImportSummary();
-            showModal(dialog, () => selectButton.focus());
-          },
-        });
-      } catch {
-        error.textContent = t("无法读取 Chrome 书签，请稍后重试。");
-        error.hidden = false;
-      } finally {
-        setButtonLoading(selectButton, false);
-      }
-    });
-
-    form.append(importBlock);
-
-    const tabImportBlock = document.createElement("div");
-    tabImportBlock.className = "bookmark-import-block";
-    tabImportBlock.innerHTML = `
-      <div class="bookmark-import-heading">${t("从打开的标签页添加")}</div>
-      <div class="bookmark-import-selection">
-        <span class="bookmark-import-summary">${t("选择当前窗口中的标签页")}</span>
-        <span class="tab-select-button-slot"></span>
-      </div>
-      <p class="bookmark-import-help">${t("选择当前窗口中需要保存的网站。")}</p>
-      <p class="form-message error" role="status" hidden></p>
-    `;
-
-    const tabSelectButton = createButton(t("选择标签页"), null, {
-      variant: "secondary",
-      size: "small",
-      loadingText: t("读取中"),
-    });
-    tabSelectButton.classList.add("bookmark-select-button");
-    tabImportBlock.querySelector(".tab-select-button-slot").replaceWith(tabSelectButton);
-    const tabSummary = tabImportBlock.querySelector(".bookmark-import-summary");
-    const tabError = tabImportBlock.querySelector(".form-message");
-
-    const updateTabImportSummary = () => {
-      const count = selectedOpenTabKeys.size;
-      tabSummary.textContent = count > 0 ? t("selectedTabCount", { count }) : t("选择当前窗口中的标签页");
-      tabSummary.classList.toggle("has-selection", count > 0);
-      const buttonLabel = count > 0 ? t("重新选择") : t("选择标签页");
-      tabSelectButton.dataset.defaultLabel = buttonLabel;
-      tabSelectButton.querySelector(".button-label").textContent = buttonLabel;
-      tabSelectButton.classList.toggle("is-compact", count > 0);
-    };
-
-    tabSelectButton.addEventListener("click", async () => {
-      tabError.hidden = true;
-      setButtonLoading(tabSelectButton, true);
-
-      try {
-        const granted = await requestTabsPermission();
-        if (!granted) {
-          tabError.textContent = t("未获得标签页访问权限，你仍可手动添加网站或从书签添加。");
-          tabError.hidden = false;
-          return;
-        }
-
-        const nextOpenTabs = await loadCurrentWindowTabs();
-        const availableKeys = new Set(nextOpenTabs.map((tab) => tab.key));
-        const availableSelection = new Set(
-          Array.from(selectedOpenTabKeys).filter((key) => availableKeys.has(key)),
-        );
-        openTabPicker(nextOpenTabs, availableSelection, {
-          onCancel: () => showModal(dialog, () => tabSelectButton.focus()),
-          onConfirm: (nextSelection) => {
-            openTabs = nextOpenTabs;
-            selectedOpenTabKeys = nextSelection;
-            updateTabImportSummary();
-            showModal(dialog, () => tabSelectButton.focus());
-          },
-        });
-      } catch {
-        tabError.textContent = t("无法读取当前窗口的标签页，请稍后重试。");
-        tabError.hidden = false;
-      } finally {
-        setButtonLoading(tabSelectButton, false);
-      }
-    });
-
-    form.append(tabImportBlock);
-  }
+  const bulkAddActions = isEditing ? null : createBulkAddActions(dialog);
+  if (bulkAddActions) form.append(bulkAddActions.element);
 
   dialog.querySelector(".dialog-content").append(form);
   const footer = dialog.querySelector(".dialog-footer");
@@ -228,10 +88,7 @@ function openWorkspaceForm(workspace = null, returnFocus = null) {
       if (workspace) {
         workspace.name = name;
       } else {
-        const sites = [
-          ...flattenSelectedBookmarks(bookmarkTree, selectedBookmarkIds),
-          ...flattenSelectedTabs(openTabs, selectedOpenTabKeys),
-        ];
+        const sites = bulkAddActions.getSites();
         getState().workspaces.push({ id: newWorkspaceId, name, tileSize: "large", sites });
       }
 
@@ -654,6 +511,139 @@ function flattenSelectedTabs(tabs, selectedKeys) {
     }));
 }
 
+function createBulkAddAction(label, loadingText) {
+  const button = createButton(label, null, { variant: "secondary", loadingText });
+  button.classList.add("bulk-add-action");
+  button.setAttribute("aria-haspopup", "dialog");
+
+  const main = document.createElement("span");
+  main.className = "bulk-add-action-main";
+  main.append(button.querySelector(".button-spinner"), button.querySelector(".button-label"));
+
+  const summary = document.createElement("span");
+  summary.className = "bulk-add-summary";
+  summary.hidden = true;
+
+  const chevron = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  chevron.classList.add("bulk-add-chevron");
+  chevron.setAttribute("viewBox", "0 0 24 24");
+  chevron.setAttribute("aria-hidden", "true");
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", "m9 6 6 6-6 6");
+  chevron.append(path);
+
+  button.append(main, summary, chevron);
+  return { button, summary };
+}
+
+function createBulkAddActions(dialog, onSelectionChange = () => {}) {
+  let bookmarkTree = [];
+  let selectedBookmarkIds = new Set();
+  let openTabs = [];
+  let selectedOpenTabKeys = new Set();
+
+  const element = document.createElement("section");
+  const labelId = createId("bulk-add-title");
+  element.className = "bulk-add-actions";
+  element.setAttribute("aria-labelledby", labelId);
+
+  const label = document.createElement("p");
+  label.id = labelId;
+  label.className = "bulk-add-label";
+  label.textContent = t("批量添加");
+
+  const tabAction = createBulkAddAction(t("从打开的标签页添加"), t("读取中"));
+  const bookmarkAction = createBulkAddAction(t("从书签导入"), t("读取中"));
+  const error = document.createElement("p");
+  error.className = "form-message error";
+  error.setAttribute("role", "status");
+  error.hidden = true;
+  element.append(label, tabAction.button, bookmarkAction.button, error);
+
+  const updateSummary = () => {
+    const tabCount = selectedOpenTabKeys.size;
+    const bookmarkCount = selectedBookmarkIds.size;
+    tabAction.summary.textContent = t("selectedTabCount", { count: tabCount });
+    tabAction.summary.hidden = tabCount === 0;
+    bookmarkAction.summary.textContent = t("selectedSiteCount", { count: bookmarkCount });
+    bookmarkAction.summary.hidden = bookmarkCount === 0;
+    onSelectionChange();
+  };
+
+  tabAction.button.addEventListener("click", async () => {
+    error.hidden = true;
+    setButtonLoading(tabAction.button, true);
+    try {
+      const granted = await requestTabsPermission();
+      if (!granted) {
+        error.textContent = t("未获得标签页访问权限，你仍可手动添加网站或从书签添加。");
+        error.hidden = false;
+        return;
+      }
+      const nextOpenTabs = await loadCurrentWindowTabs();
+      const availableKeys = new Set(nextOpenTabs.map((tab) => tab.key));
+      const availableSelection = new Set(
+        Array.from(selectedOpenTabKeys).filter((key) => availableKeys.has(key)),
+      );
+      openTabPicker(nextOpenTabs, availableSelection, {
+        onCancel: () => showModal(dialog, () => tabAction.button.focus()),
+        onConfirm: (nextSelection) => {
+          openTabs = nextOpenTabs;
+          selectedOpenTabKeys = nextSelection;
+          updateSummary();
+          showModal(dialog, () => tabAction.button.focus());
+        },
+      });
+    } catch {
+      error.textContent = t("无法读取当前窗口的标签页，请稍后重试。");
+      error.hidden = false;
+    } finally {
+      setButtonLoading(tabAction.button, false);
+    }
+  });
+
+  bookmarkAction.button.addEventListener("click", async () => {
+    error.hidden = true;
+    setButtonLoading(bookmarkAction.button, true);
+    try {
+      const granted = await requestBookmarksPermission();
+      if (!granted) {
+        error.textContent = t("未获得书签访问权限，你仍可手动添加网站。");
+        error.hidden = false;
+        return;
+      }
+      const nextBookmarkTree = await loadBookmarksTree();
+      const availableBookmarkIds = new Set(nextBookmarkTree.flatMap((node) => getDescendantBookmarkIds(node)));
+      const availableSelection = new Set(
+        Array.from(selectedBookmarkIds).filter((id) => availableBookmarkIds.has(id)),
+      );
+      openBookmarkPicker(nextBookmarkTree, availableSelection, {
+        onCancel: () => showModal(dialog, () => bookmarkAction.button.focus()),
+        onConfirm: (nextSelection) => {
+          bookmarkTree = nextBookmarkTree;
+          selectedBookmarkIds = nextSelection;
+          updateSummary();
+          showModal(dialog, () => bookmarkAction.button.focus());
+        },
+      });
+    } catch {
+      error.textContent = t("无法读取 Chrome 书签，请稍后重试。");
+      error.hidden = false;
+    } finally {
+      setButtonLoading(bookmarkAction.button, false);
+    }
+  });
+
+  return {
+    element,
+    hasSelection: () => selectedBookmarkIds.size > 0 || selectedOpenTabKeys.size > 0,
+    getSites: () => [
+      ...flattenSelectedBookmarks(bookmarkTree, selectedBookmarkIds),
+      ...flattenSelectedTabs(openTabs, selectedOpenTabKeys),
+    ],
+  };
+}
+
 function openSiteForm(workspaceId, site = null, returnFocus = null) {
   const workspace = getWorkspace(workspaceId);
   if (!workspace) return;
@@ -665,10 +655,7 @@ function openSiteForm(workspaceId, site = null, returnFocus = null) {
     ? { ...currentModal }
     : null;
   const trigger = returnFocus || (document.activeElement instanceof HTMLElement ? document.activeElement : null);
-  let bookmarkTree = [];
-  let selectedBookmarkIds = new Set();
-  let openTabs = [];
-  let selectedOpenTabKeys = new Set();
+  let bulkAddActions = null;
   const dialog = createDialog("small");
   const cancelSiteForm = () => {
     if (originModal?.dialog) {
@@ -703,11 +690,11 @@ function openSiteForm(workspaceId, site = null, returnFocus = null) {
   form.innerHTML = `
     <div class="field">
       <label for="siteName">${t("名称")}</label>
-      <input id="siteName" name="name" autocomplete="off" maxlength="80">
+      <input id="siteName" name="name" autocomplete="off" maxlength="80" placeholder="${t("选填，留空将使用网站域名")}">
     </div>
     <div class="field">
       <label for="siteUrl">URL</label>
-      <input id="siteUrl" name="url" autocomplete="off" required inputmode="url" aria-describedby="siteUrlError">
+      <input id="siteUrl" name="url" autocomplete="off" required inputmode="url" placeholder="${t("粘贴 URL 或输入域名")}" aria-describedby="siteUrlError">
       <p class="field-error" id="siteUrlError" role="status" hidden></p>
     </div>
   `;
@@ -719,7 +706,7 @@ function openSiteForm(workspaceId, site = null, returnFocus = null) {
   const validateSiteUrl = () => {
     const rawUrl = siteUrlInput.value.trim();
     const rawName = form.elements.name.value.trim();
-    const hasImportedSites = selectedBookmarkIds.size > 0 || selectedOpenTabKeys.size > 0;
+    const hasImportedSites = Boolean(bulkAddActions?.hasSelection());
     let message = "";
     if (rawUrl) {
       message = getUrlValidationError(rawUrl);
@@ -746,7 +733,7 @@ function openSiteForm(workspaceId, site = null, returnFocus = null) {
   let submitButton = null;
   const updateSubmitAvailability = () => {
     if (isEditing || !submitButton) return;
-    const hasImportedSites = selectedBookmarkIds.size > 0 || selectedOpenTabKeys.size > 0;
+    const hasImportedSites = Boolean(bulkAddActions?.hasSelection());
     const hasContent = Boolean(
       form.elements.url.value.trim()
       || form.elements.name.value.trim()
@@ -765,135 +752,8 @@ function openSiteForm(workspaceId, site = null, returnFocus = null) {
   form.elements.name.addEventListener("input", updateSubmitAvailability);
 
   if (!isEditing) {
-    const importBlock = document.createElement("div");
-    importBlock.className = "bookmark-import-block";
-    importBlock.innerHTML = `
-      <div class="bookmark-import-heading">${t("从书签添加")}</div>
-      <div class="bookmark-import-selection">
-        <span class="bookmark-import-summary">${t("选择文件夹或网站")}</span>
-        <span class="bookmark-select-button-slot"></span>
-      </div>
-      <p class="bookmark-import-help">${t("所选文件夹中的网站将被平铺添加，不会保留原有文件夹结构。")}</p>
-      <p class="form-message error" role="status" hidden></p>
-    `;
-    const bookmarkSelectButton = createButton(t("选择书签"), null, {
-      variant: "secondary",
-      size: "small",
-      loadingText: t("读取中"),
-    });
-    bookmarkSelectButton.classList.add("bookmark-select-button");
-    importBlock.querySelector(".bookmark-select-button-slot").replaceWith(bookmarkSelectButton);
-    const bookmarkSummary = importBlock.querySelector(".bookmark-import-summary");
-    const bookmarkError = importBlock.querySelector(".form-message");
-
-    const updateBookmarkSummary = () => {
-      const count = selectedBookmarkIds.size;
-      bookmarkSummary.textContent = count > 0 ? t("selectedSiteCount", { count }) : t("选择文件夹或网站");
-      bookmarkSummary.classList.toggle("has-selection", count > 0);
-      const label = count > 0 ? t("修改") : t("选择书签");
-      bookmarkSelectButton.dataset.defaultLabel = label;
-      bookmarkSelectButton.querySelector(".button-label").textContent = label;
-      bookmarkSelectButton.classList.toggle("is-compact", count > 0);
-      updateSubmitAvailability();
-    };
-
-    bookmarkSelectButton.addEventListener("click", async () => {
-      bookmarkError.hidden = true;
-      setButtonLoading(bookmarkSelectButton, true);
-      try {
-        const granted = await requestBookmarksPermission();
-        if (!granted) {
-          bookmarkError.textContent = t("未获得书签访问权限，你仍可手动添加网站。");
-          bookmarkError.hidden = false;
-          return;
-        }
-        const nextBookmarkTree = await loadBookmarksTree();
-        const availableBookmarkIds = new Set(nextBookmarkTree.flatMap((node) => getDescendantBookmarkIds(node)));
-        const availableSelection = new Set(
-          Array.from(selectedBookmarkIds).filter((id) => availableBookmarkIds.has(id)),
-        );
-        openBookmarkPicker(nextBookmarkTree, availableSelection, {
-          onCancel: () => showModal(dialog, () => bookmarkSelectButton.focus()),
-          onConfirm: (nextSelection) => {
-            bookmarkTree = nextBookmarkTree;
-            selectedBookmarkIds = nextSelection;
-            updateBookmarkSummary();
-            showModal(dialog, () => bookmarkSelectButton.focus());
-          },
-        });
-      } catch {
-        bookmarkError.textContent = t("无法读取 Chrome 书签，请稍后重试。");
-        bookmarkError.hidden = false;
-      } finally {
-        setButtonLoading(bookmarkSelectButton, false);
-      }
-    });
-    form.append(importBlock);
-
-    const tabImportBlock = document.createElement("div");
-    tabImportBlock.className = "bookmark-import-block";
-    tabImportBlock.innerHTML = `
-      <div class="bookmark-import-heading">${t("从打开的标签页添加")}</div>
-      <div class="bookmark-import-selection">
-        <span class="bookmark-import-summary">${t("选择当前窗口中的标签页")}</span>
-        <span class="tab-select-button-slot"></span>
-      </div>
-      <p class="bookmark-import-help">${t("选择当前窗口中需要保存的网站。")}</p>
-      <p class="form-message error" role="status" hidden></p>
-    `;
-    const tabSelectButton = createButton(t("选择标签页"), null, {
-      variant: "secondary",
-      size: "small",
-      loadingText: t("读取中"),
-    });
-    tabSelectButton.classList.add("bookmark-select-button");
-    tabImportBlock.querySelector(".tab-select-button-slot").replaceWith(tabSelectButton);
-    const tabSummary = tabImportBlock.querySelector(".bookmark-import-summary");
-    const tabError = tabImportBlock.querySelector(".form-message");
-
-    const updateTabSummary = () => {
-      const count = selectedOpenTabKeys.size;
-      tabSummary.textContent = count > 0 ? t("selectedTabCount", { count }) : t("选择当前窗口中的标签页");
-      tabSummary.classList.toggle("has-selection", count > 0);
-      const label = count > 0 ? t("重新选择") : t("选择标签页");
-      tabSelectButton.dataset.defaultLabel = label;
-      tabSelectButton.querySelector(".button-label").textContent = label;
-      tabSelectButton.classList.toggle("is-compact", count > 0);
-      updateSubmitAvailability();
-    };
-
-    tabSelectButton.addEventListener("click", async () => {
-      tabError.hidden = true;
-      setButtonLoading(tabSelectButton, true);
-      try {
-        const granted = await requestTabsPermission();
-        if (!granted) {
-          tabError.textContent = t("未获得标签页访问权限，你仍可手动添加网站或从书签添加。");
-          tabError.hidden = false;
-          return;
-        }
-        const nextOpenTabs = await loadCurrentWindowTabs();
-        const availableKeys = new Set(nextOpenTabs.map((tab) => tab.key));
-        const availableSelection = new Set(
-          Array.from(selectedOpenTabKeys).filter((key) => availableKeys.has(key)),
-        );
-        openTabPicker(nextOpenTabs, availableSelection, {
-          onCancel: () => showModal(dialog, () => tabSelectButton.focus()),
-          onConfirm: (nextSelection) => {
-            openTabs = nextOpenTabs;
-            selectedOpenTabKeys = nextSelection;
-            updateTabSummary();
-            showModal(dialog, () => tabSelectButton.focus());
-          },
-        });
-      } catch {
-        tabError.textContent = t("无法读取当前窗口的标签页，请稍后重试。");
-        tabError.hidden = false;
-      } finally {
-        setButtonLoading(tabSelectButton, false);
-      }
-    });
-    form.append(tabImportBlock);
+    bulkAddActions = createBulkAddActions(dialog, updateSubmitAvailability);
+    form.append(bulkAddActions.element);
   }
 
   dialog.querySelector(".dialog-content").append(form);
@@ -938,10 +798,7 @@ function openSiteForm(workspaceId, site = null, returnFocus = null) {
             url,
           });
         }
-        sites.push(
-          ...flattenSelectedBookmarks(bookmarkTree, selectedBookmarkIds),
-          ...flattenSelectedTabs(openTabs, selectedOpenTabKeys),
-        );
+        sites.push(...bulkAddActions.getSites());
         addedCount = sites.length;
         await appendSitesToLatestWorkspaceApp(workspaceId, sites);
       }

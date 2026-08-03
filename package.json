@@ -10,11 +10,12 @@
     "test:backup": "node scripts/backup-test.mjs",
     "test:i18n": "node scripts/i18n-test.mjs",
     "test:quick-add": "node scripts/quick-add-test.mjs",
+    "test:forms": "node scripts/forms-test.mjs",
     "test:favicon": "node scripts/favicon-test.mjs",
     "test:site-delete": "node scripts/site-delete-test.mjs",
     "test:reorder": "node scripts/reorder-test.mjs",
     "test:animation": "node scripts/workspace-animation-test.mjs",
     "test:workspace-notes": "node scripts/workspace-notes-test.mjs",
-    "test": "npm run test:ui-audit && npm run test:i18n && npm run test:backup && npm run test:quick-add && npm run test:favicon && npm run test:site-delete && npm run test:reorder && npm run test:animation && npm run test:workspace-notes && npm run check"
+    "test": "npm run test:ui-audit && npm run test:i18n && npm run test:backup && npm run test:quick-add && npm run test:forms && npm run test:favicon && npm run test:site-delete && npm run test:reorder && npm run test:animation && npm run test:workspace-notes && npm run check"
   }
 }
