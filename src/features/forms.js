@@ -89,7 +89,7 @@ function openWorkspaceForm(workspace = null, returnFocus = null) {
         workspace.name = name;
       } else {
         const sites = bulkAddActions.getSites();
-        getState().workspaces.push({ id: newWorkspaceId, name, tileSize: "large", sites });
+        getState().workspaces.push({ id: newWorkspaceId, name, tileSize: "small", sites });
       }
 
       await saveState();
@@ -550,10 +550,10 @@ function createBulkAddActions(dialog, onSelectionChange = () => {}) {
   const label = document.createElement("p");
   label.id = labelId;
   label.className = "bulk-add-label";
-  label.textContent = t("批量添加");
+  label.textContent = t("添加网站来源");
 
-  const tabAction = createBulkAddAction(t("从打开的标签页添加"), t("读取中"));
-  const bookmarkAction = createBulkAddAction(t("从书签导入"), t("读取中"));
+  const tabAction = createBulkAddAction(t("打开的标签页"), t("读取中"));
+  const bookmarkAction = createBulkAddAction(t("书签"), t("读取中"));
   const error = document.createElement("p");
   error.className = "form-message error";
   error.setAttribute("role", "status");

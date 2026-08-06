@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { normalizeState, normalizeTileSize, normalizeUiState } from "../src/core/state.js";
 import {
   MAX_NOTE_LENGTH,
@@ -7,6 +10,11 @@ import {
   parseNoteLines,
   toggleChecklistLine,
 } from "../src/features/workspace-notes.js";
+
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const html = readFileSync(path.join(projectRoot, "newtab.html"), "utf8");
+const app = readFileSync(path.join(projectRoot, "app.js"), "utf8");
+const workspaceStyles = readFileSync(path.join(projectRoot, "styles/workspace.css"), "utf8");
 
 const oldState = normalizeState({
   workspaces: [{ id: "workspace-1", name: "公司", sites: [] }],
@@ -47,4 +55,17 @@ assert.equal(toggleChecklistLine(note, 1, true).split("\n")[1], "- [x] 未完成
 assert.equal(toggleChecklistLine(note, 2, false).split("\n")[2], "  -[ ] 已完成");
 assert.equal(toggleChecklistLine(note, 3, true), note);
 
-console.log("Workspace Notes 测试通过：旧数据兼容、尺寸与展开状态规范化、清单解析与切换均符合预期。");
+assert.doesNotMatch(html, /workspaceSectionTitle|workspace-section-header/,
+  "首页不得显示 Workspace 分组标题");
+assert.match(html, /<section class="workspace-section" aria-label="工作区" data-i18n-aria-label="工作区">/,
+  "移除可见标题后仍需保留工作区区域的无障碍名称");
+assert.match(workspaceStyles, /\.workspace-note-layout\s*\{[\s\S]*?padding:\s*var\(--space-4\) 14px var\(--space-2\);/,
+  "Notes 内容区必须使用统一的左右留边");
+assert.doesNotMatch(workspaceStyles, /\.workspace-tile\[data-size="large"\]\s+\.workspace-note-layout/,
+  "大卡片 Notes 面不得覆盖统一的左右留边");
+assert.doesNotMatch(html, /show-sites-button/,
+  "Notes 面不得保留重复的网格切回按钮");
+assert.doesNotMatch(app, /showSitesButtons|show-sites-button/,
+  "移除网格切回按钮后不得残留无效绑定逻辑");
+
+console.log("Workspace Notes 测试通过：数据规范化、清单解析、首页标题、Notes 留边与精简操作均符合预期。");

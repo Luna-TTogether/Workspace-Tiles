@@ -269,6 +269,7 @@ function openNoteDiscardDialog(noteFace, action, returnFocus) {
 
 export function createWorkspaceDragImage(node) {
   const rect = node.getBoundingClientRect();
+  const sourceStyles = getComputedStyle(node);
   const preview = node.cloneNode(true);
   const sourceVisuals = Array.from(node.querySelectorAll(".favicon-visual"));
   const previewVisuals = Array.from(preview.querySelectorAll(".favicon-visual"));
@@ -309,6 +310,11 @@ export function createWorkspaceDragImage(node) {
   preview.setAttribute("inert", "");
   preview.style.width = `${rect.width}px`;
   preview.style.height = `${rect.height}px`;
+  preview.style.gridTemplateRows = sourceStyles.gridTemplateRows;
+  ["--tile-label-height", "--tile-height", "--tile-unit"].forEach((property) => {
+    const value = sourceStyles.getPropertyValue(property).trim();
+    if (value) preview.style.setProperty(property, value);
+  });
   preview.querySelectorAll("[id]").forEach((element) => element.removeAttribute("id"));
   preview.querySelectorAll("[for]").forEach((element) => element.removeAttribute("for"));
   preview.querySelectorAll("[draggable]").forEach((element) => element.removeAttribute("draggable"));
@@ -319,11 +325,17 @@ export function setWorkspaceCardFace(node, face) {
   const isNote = face === "note";
   const sitesFace = node.querySelector(".workspace-sites-face");
   const noteFace = node.querySelector(".workspace-note-face");
+  const titleButton = node.querySelector(".workspace-open-button");
   node.classList.toggle("is-note", isNote);
   sitesFace.toggleAttribute("inert", isNote);
   noteFace.toggleAttribute("inert", !isNote);
   sitesFace.setAttribute("aria-hidden", String(isNote));
   noteFace.setAttribute("aria-hidden", String(!isNote));
+  if (titleButton) {
+    const actionLabel = t(isNote ? "查看网站" : "查看便签");
+    titleButton.title = actionLabel;
+    titleButton.ariaLabel = `${titleButton.textContent} · ${actionLabel}`;
+  }
   if (isNote) {
     const workspace = getWorkspace(node.dataset.workspaceId);
     if (workspace) renderWorkspaceNote(noteFace, workspace.id, workspace.note);
@@ -341,8 +353,7 @@ export function flipWorkspaceCard(node, workspaceId, face, fromKeyboard = false,
     setWorkspaceCardFace(node, face);
     node.classList.remove("is-flipping", "flip-to-note", "flip-to-sites");
     if (fromKeyboard) {
-      const selector = face === "note" ? ".workspace-note-title" : ".workspace-open-button";
-      node.querySelector(selector)?.focus();
+      node.querySelector(".workspace-open-button")?.focus();
     }
   };
 

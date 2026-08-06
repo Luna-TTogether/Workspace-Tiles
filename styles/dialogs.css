@@ -40,10 +40,13 @@
 
 .dialog.workspace-expanded-dialog {
   --dialog-inline-padding: 28px;
-  width: min(992px, calc(100vw - 64px));
-  height: min(496px, calc(100vh - 32px));
+  width: min(var(--workspace-expanded-dialog-width), calc(100vw - 64px));
+  height: min(var(--workspace-large-card-height), calc(100vh - 32px));
   max-height: none;
   overflow: hidden;
+  background: var(--surface);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .workspace-expanded-dialog > .dialog-header {
@@ -63,6 +66,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.workspace-expanded-open-all {
+  flex: 0 0 auto;
+  margin-right: 0;
 }
 
 .dialog.workspace-expanded-dialog > .workspace-expanded-content {
@@ -159,17 +167,25 @@
   overflow: clip;
   animation: none;
   mix-blend-mode: normal;
+}
+
+:root[data-workspace-transition="expand"]::view-transition-old(workspace-expand) {
+  object-fit: contain;
   object-position: left center;
 }
 
-:root[data-workspace-transition="expand"]::view-transition-old(workspace-expand),
-:root[data-workspace-transition="collapse"]::view-transition-new(workspace-expand) {
-  object-fit: contain;
+:root[data-workspace-transition="expand"]::view-transition-new(workspace-expand) {
+  object-fit: cover;
 }
 
-:root[data-workspace-transition="expand"]::view-transition-new(workspace-expand),
 :root[data-workspace-transition="collapse"]::view-transition-old(workspace-expand) {
-  object-fit: cover;
+  opacity: 0;
+}
+
+:root[data-workspace-transition="collapse"]::view-transition-new(workspace-expand) {
+  object-fit: contain;
+  object-position: center center;
+  animation: workspace-collapse-target-in 160ms ease-out both;
 }
 
 ::view-transition-group(workspace-backdrop) {
@@ -198,6 +214,11 @@
 @keyframes workspace-backdrop-out {
   from { opacity: 1; }
   to { opacity: 0; }
+}
+
+@keyframes workspace-collapse-target-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .dialog-header {
@@ -388,6 +409,7 @@
 
 .bulk-add-action-main {
   display: inline-flex;
+  grid-column: 1;
   min-width: 0;
   align-items: center;
   gap: 7px;
@@ -400,6 +422,7 @@
 }
 
 .bulk-add-summary {
+  grid-column: 2;
   color: var(--muted);
   font-size: var(--font-meta);
   font-weight: var(--weight-body);
@@ -408,6 +431,8 @@
 }
 
 .bulk-add-chevron {
+  grid-column: 3;
+  justify-self: end;
   width: 16px;
   height: 16px;
   fill: none;
@@ -513,7 +538,11 @@
   font-size: var(--font-body);
   font-weight: var(--weight-action);
   line-height: var(--line-body);
-  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease, transform 80ms ease-out;
+}
+
+.button:not(:disabled):active {
+  transform: scale(0.97);
 }
 
 .button.small {
@@ -557,7 +586,7 @@
 }
 
 .button.primary:not(:disabled):active {
-  transform: translateY(1px);
+  transform: scale(0.97);
 }
 
 .button.danger {
@@ -825,8 +854,40 @@
     transition: none;
   }
 
+  .button,
+  .icon-button,
+  .favicon-mini,
+  .workspace-open-button,
+  .preview-pagination-button,
+  .add-workspace-tile {
+    transition: none;
+  }
+
+  .button:not(:disabled):active,
+  .icon-button:not(:disabled):active,
+  .favicon-mini:active,
+  .workspace-open-button:active,
+  .preview-pagination-button:not(:disabled):active,
+  .add-workspace-tile:active {
+    transform: none;
+  }
+
   ::view-transition-group(workspace-expand),
   ::view-transition-group(workspace-backdrop) {
     animation-duration: 1ms;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .modal-backdrop,
+  .dialog {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .dialog {
+    border-color: var(--text);
   }
 }

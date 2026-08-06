@@ -1,8 +1,10 @@
-import { getFaviconUrl, getInitial, isHttpUrl } from "./utils.js";
+import { FAVICON_REQUEST_SIZE, getFaviconUrl, getInitial, isHttpUrl } from "./utils.js";
 
 const FAVICON_DATABASE_NAME = "workspaceTilesAssets";
 const FAVICON_DATABASE_VERSION = 1;
 const FAVICON_STORE_NAME = "favicons";
+const FAVICON_CACHE_FORMAT_VERSION = 2;
+const FAVICON_CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 const MAX_CACHED_FAVICONS = 400;
 const pendingFavicons = new Map();
 
@@ -12,6 +14,16 @@ function getFaviconCacheKey(url) {
   } catch {
     return String(url || "").trim();
   }
+}
+
+function isFaviconCacheEntryFresh(entry, now = Date.now()) {
+  if (!entry?.blob || entry.cacheFormatVersion !== FAVICON_CACHE_FORMAT_VERSION) return false;
+  if (Number(entry.requestedSize) < FAVICON_REQUEST_SIZE) return false;
+
+  const cachedAt = Number(entry.cachedAt);
+  const checkedAt = Number(now);
+  if (!Number.isFinite(cachedAt) || !Number.isFinite(checkedAt)) return false;
+  return cachedAt > 0 && cachedAt <= checkedAt && checkedAt - cachedAt <= FAVICON_CACHE_TTL_MS;
 }
 
 function openFaviconDatabase() {
@@ -38,7 +50,9 @@ async function readCachedFavicon(key) {
   return new Promise((resolve, reject) => {
     const transaction = database.transaction(FAVICON_STORE_NAME, "readonly");
     const request = transaction.objectStore(FAVICON_STORE_NAME).get(key);
-    request.addEventListener("success", () => resolve(request.result?.blob || null), { once: true });
+    request.addEventListener("success", () => {
+      resolve(isFaviconCacheEntryFresh(request.result) ? request.result.blob : null);
+    }, { once: true });
     request.addEventListener("error", () => reject(request.error), { once: true });
     transaction.addEventListener("complete", () => database.close(), { once: true });
     transaction.addEventListener("abort", () => database.close(), { once: true });
@@ -52,7 +66,13 @@ async function writeCachedFavicon(key, blob) {
   try {
     await new Promise((resolve, reject) => {
       const transaction = database.transaction(FAVICON_STORE_NAME, "readwrite");
-      transaction.objectStore(FAVICON_STORE_NAME).put({ key, blob, cachedAt: Date.now() });
+      transaction.objectStore(FAVICON_STORE_NAME).put({
+        key,
+        blob,
+        cacheFormatVersion: FAVICON_CACHE_FORMAT_VERSION,
+        requestedSize: FAVICON_REQUEST_SIZE,
+        cachedAt: Date.now(),
+      });
       transaction.addEventListener("complete", resolve, { once: true });
       transaction.addEventListener("error", () => reject(transaction.error), { once: true });
       transaction.addEventListener("abort", () => reject(transaction.error), { once: true });
@@ -178,11 +198,14 @@ function renderFavicon(container, site) {
 }
 
 export {
+  FAVICON_CACHE_FORMAT_VERSION,
+  FAVICON_CACHE_TTL_MS,
   FAVICON_DATABASE_NAME,
   FAVICON_STORE_NAME,
   MAX_CACHED_FAVICONS,
   canApplyFaviconResult,
   getFaviconCacheKey,
+  isFaviconCacheEntryFresh,
   loadFaviconBlob,
   renderFavicon,
 };

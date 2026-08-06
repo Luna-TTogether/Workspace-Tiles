@@ -1,11 +1,13 @@
 import { t } from "./i18n.js";
 
+const FAVICON_REQUEST_SIZE = 128;
+
 function getChromeApi() {
   return typeof chrome === "undefined" ? null : chrome;
 }
 
 function getAppVersion() {
-  return getChromeApi()?.runtime?.getManifest?.().version || "0.1.4";
+  return getChromeApi()?.runtime?.getManifest?.().version || "0.1.5";
 }
 
 function normalizeUrl(value) {
@@ -52,7 +54,7 @@ function getFaviconUrl(url) {
   if (!chromeApi?.runtime?.getURL || !isHttpUrl(url)) return "";
   const faviconUrl = new URL(chromeApi.runtime.getURL("/_favicon/"));
   faviconUrl.searchParams.set("pageUrl", url);
-  faviconUrl.searchParams.set("size", "64");
+  faviconUrl.searchParams.set("size", String(FAVICON_REQUEST_SIZE));
   faviconUrl.searchParams.set("allowGoogleServerFallback", "0");
   faviconUrl.searchParams.set("forceEmptyDefaultFavicon", "1");
   return faviconUrl.href;
@@ -93,6 +95,7 @@ function getUrlValidationError(value) {
 }
 
 export {
+  FAVICON_REQUEST_SIZE,
   createId,
   getAppVersion,
   getChromeApi,

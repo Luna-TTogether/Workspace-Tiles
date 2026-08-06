@@ -34,11 +34,22 @@
   --accent: var(--gray-10);
   --accent-hover: #383838;
   --accent-soft: var(--gray-1);
+  --action: var(--blue-9);
+  --action-soft: color-mix(in srgb, var(--action) 10%, var(--surface));
+  --action-active: color-mix(in srgb, var(--action) 16%, var(--surface));
   --focus: var(--blue-9);
   --danger: var(--red-9);
   --on-danger: #ffffff;
   --success: #1a7f37;
   --backdrop: rgba(0, 0, 0, 0.32);
+
+  /* Floating materials preserve context while keeping foreground text crisp. */
+  --material-raised: color-mix(in srgb, var(--surface) 92%, transparent);
+  --material-floating: color-mix(in srgb, var(--surface) 86%, transparent);
+  --material-blur: 24px;
+  --material-saturation: 160%;
+  --workspace-card-surface: color-mix(in srgb, var(--surface) 45%, var(--page));
+  --workspace-card-border: color-mix(in srgb, var(--border) 64%, transparent);
 
   /* Geist material levels. */
   --radius-base: 6px;
@@ -60,6 +71,16 @@
   --space-12: 48px;
   --space-14: 56px;
 
+  /* Shared workspace geometry keeps cards and the expanded view in sync. */
+  --workspace-tile-unit: 240px;
+  --workspace-tile-height: 256px;
+  --workspace-tile-label-height: 32px;
+  --workspace-grid-column-gap: var(--space-8);
+  --workspace-grid-row-gap: var(--space-12);
+  --workspace-large-card-width: calc(var(--workspace-tile-unit) + var(--workspace-tile-unit) + var(--workspace-grid-column-gap));
+  --workspace-large-card-height: calc(var(--workspace-tile-height) + var(--workspace-tile-label-height) + var(--workspace-tile-height) + var(--workspace-tile-label-height) + var(--workspace-grid-row-gap));
+  --workspace-expanded-dialog-width: calc(var(--workspace-large-card-width) + var(--workspace-large-card-width));
+
   /* Compact Geist typography for a utility surface. */
   --font-sans: "Geist Sans", Geist, Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   --font-mono: "Geist Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
@@ -74,6 +95,7 @@
   --weight-body: 400;
   --weight-action: 500;
   font-family: var(--font-sans);
+  font-optical-sizing: auto;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -93,10 +115,34 @@
     --red-9: #ff6166;
     --success: #3ecf8e;
     --accent-hover: #cccccc;
+    --action-soft: color-mix(in srgb, var(--action) 16%, var(--surface));
+    --action-active: color-mix(in srgb, var(--action) 24%, var(--surface));
     --backdrop: rgba(0, 0, 0, 0.64);
     --shadow-small: 0 2px 4px rgba(0, 0, 0, 0.28);
     --shadow-menu: 0 8px 30px rgba(0, 0, 0, 0.48);
     --shadow-modal: 0 16px 48px rgba(0, 0, 0, 0.56);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --material-raised: var(--surface);
+    --material-floating: var(--surface);
+    --material-blur: 0px;
+    --material-saturation: 100%;
+    --workspace-card-surface: var(--surface);
+    --workspace-card-border: var(--border-strong);
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --material-raised: var(--surface);
+    --material-floating: var(--surface);
+    --material-blur: 0px;
+    --material-saturation: 100%;
+    --workspace-card-surface: var(--surface);
+    --workspace-card-border: var(--border-strong);
   }
 }
 

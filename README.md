@@ -70,7 +70,7 @@ Workspace Tiles 是一个轻量的 Chrome 新标签页工作区启动器。它�
 
 快捷加入的默认建议按键是 `Alt+Shift+W`，可以在 `chrome://extensions/shortcuts` 中修改。
 
-网站图标从 Chrome 的本地 favicon 数据中读取，并缓存在 Workspace Tiles 的本地 IndexedDB 中。图标不会发送给开发者或第三方，也不会包含在备份中；无可用图标时立即显示网站名称的首个字符。
+网站图标从 Chrome 的本地 favicon 数据中读取，并缓存在 Workspace Tiles 的本地 IndexedDB 中。缓存会在 14 天后或图标格式升级时自动刷新。图标不会发送给开发者或第三方，也不会包含在备份中；无可用图标时立即显示网站名称的首个字符。
 
 ## 开发检查
 

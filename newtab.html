@@ -12,8 +12,21 @@
   </head>
   <body>
     <main class="page-shell">
-      <section class="workspace-grid" id="workspaceGrid" aria-label="工作区" data-i18n-aria-label="工作区"></section>
-      <section class="empty-page-state" id="emptyPageState" aria-label="工作区空状态" data-i18n-aria-label="工作区空状态" hidden></section>
+      <section class="search-hero" aria-labelledby="searchHeroTitle">
+        <h1 id="searchHeroTitle" data-i18n="今天从哪里开始？">今天从哪里开始？</h1>
+        <div class="search-placeholder" aria-hidden="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="11" cy="11" r="6.5"></circle>
+            <path d="m16 16 4 4"></path>
+          </svg>
+          <span data-i18n="搜索工作区和网站……">搜索工作区和网站……</span>
+        </div>
+      </section>
+
+      <section class="workspace-section" aria-label="工作区" data-i18n-aria-label="工作区">
+        <section class="workspace-grid" id="workspaceGrid" aria-label="工作区" data-i18n-aria-label="工作区"></section>
+        <section class="empty-page-state" id="emptyPageState" aria-label="工作区空状态" data-i18n-aria-label="工作区空状态" hidden></section>
+      </section>
     </main>
 
     <div class="modal-backdrop" id="modalBackdrop" hidden></div>
@@ -23,21 +36,16 @@
 
     <template id="workspaceTileTemplate">
       <article class="workspace-tile">
+        <header class="workspace-tile-label">
+          <h2><button class="workspace-open-button" type="button"></button><span class="workspace-site-count-badge"></span></h2>
+        </header>
         <div class="workspace-card-inner">
           <section class="workspace-card-face workspace-sites-face">
             <div class="tile-body">
-              <div class="tile-header">
-                <div class="tile-copy">
-                  <h2><button class="workspace-open-button" type="button"></button><span class="workspace-site-count-badge"></span></h2>
-                  <p class="workspace-site-meta"></p>
-                </div>
-              </div>
               <div class="favicon-preview"></div>
             </div>
             <div class="tile-actions">
-              <button class="icon-button open-all-button" type="button" title="打开全部" aria-label="打开全部">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"></path></svg>
-              </button>
+              <div class="open-all-menu-slot"></div>
               <button class="icon-button open-workspace-button" type="button" title="打开工作区" aria-label="打开工作区">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"></path></svg>
               </button>
@@ -48,12 +56,6 @@
           </section>
 
           <section class="workspace-card-face workspace-note-face" aria-hidden="true" inert>
-            <div class="note-accent" aria-hidden="true"></div>
-            <header class="note-card-header">
-              <div class="tile-copy">
-                <h2><button class="workspace-note-title show-sites-button" type="button"></button><span class="workspace-site-count-badge"></span></h2>
-              </div>
-            </header>
             <div class="workspace-note-layout">
               <div class="workspace-note-surface">
                 <div class="workspace-note-reader"></div>
@@ -79,9 +81,6 @@
               </div>
             </div>
             <div class="tile-actions">
-              <button class="icon-button show-sites-button" type="button" title="查看网站" aria-label="查看网站">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="1"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="1"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="1"></rect></svg>
-              </button>
               <button class="icon-button open-workspace-button" type="button" title="打开工作区" aria-label="打开工作区">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"></path></svg>
               </button>

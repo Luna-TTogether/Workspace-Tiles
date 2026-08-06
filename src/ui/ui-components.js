@@ -130,26 +130,6 @@ function createIconButton(label, pathData, onClick, danger = false) {
   return button;
 }
 
-function createOpenAllIconButton(onClick) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "icon-button";
-  button.title = t("打开全部");
-  button.ariaLabel = t("打开全部");
-  button.innerHTML = `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M15 3h6v6"></path>
-      <path d="M10 14 21 3"></path>
-      <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"></path>
-    </svg>
-  `;
-  button.addEventListener("click", (event) => {
-    event.stopPropagation();
-    onClick(event);
-  });
-  return button;
-}
-
 function createMoreIconButton(onClick) {
   const button = document.createElement("button");
   button.type = "button";
@@ -166,6 +146,31 @@ function createMoreIconButton(onClick) {
   button.addEventListener("click", (event) => {
     event.stopPropagation();
     onClick(event);
+  });
+  return button;
+}
+
+function createMenuButton({ label, accessibleLabel = label, onMenu }) {
+  const button = createButton(label, null, { variant: "secondary" });
+  button.classList.add("menu-button");
+  button.title = accessibleLabel;
+  button.ariaLabel = accessibleLabel;
+  button.setAttribute("aria-haspopup", "menu");
+  button.setAttribute("aria-expanded", "false");
+  button.insertAdjacentHTML("beforeend", `
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path d="m4 6 4 4 4-4"></path>
+    </svg>
+  `);
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    onMenu?.(event, "first");
+  });
+  button.addEventListener("keydown", (event) => {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    event.preventDefault();
+    event.stopPropagation();
+    onMenu?.(event, event.key === "ArrowUp" ? "last" : "first");
   });
   return button;
 }
@@ -298,7 +303,7 @@ function trapModalFocus(event, dialog) {
   }
 }
 
-function showMenu(menu, anchor) {
+function showMenu(menu, anchor, { initialFocus = "first" } = {}) {
   menuReturnFocus = anchor;
   const items = Array.from(menu.querySelectorAll('[role="menuitem"]:not([disabled]), [role="menuitemradio"]:not([disabled])'));
   menu.addEventListener("keydown", (event) => {
@@ -315,7 +320,10 @@ function showMenu(menu, anchor) {
   });
   menuLayer.hidden = false;
   menuLayer.append(menu);
-  requestAnimationFrame(() => items[0]?.focus());
+  requestAnimationFrame(() => {
+    const target = initialFocus === "last" ? items.at(-1) : items[0];
+    target?.focus();
+  });
 }
 
 function closeMenu({ restoreFocus = true } = {}) {
@@ -393,8 +401,8 @@ export {
   createDialogTitle,
   createEmptyState,
   createIconButton,
+  createMenuButton,
   createMoreIconButton,
-  createOpenAllIconButton,
   dismissModal,
   getCurrentModal,
   openDestructiveModal,

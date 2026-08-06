@@ -13,8 +13,10 @@
   width: 32px;
   height: 32px;
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--material-floating);
   box-shadow: var(--shadow-small);
+  -webkit-backdrop-filter: blur(var(--material-blur)) saturate(var(--material-saturation));
+  backdrop-filter: blur(var(--material-blur)) saturate(var(--material-saturation));
 }
 
 .management-panel {
@@ -29,8 +31,10 @@
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-medium);
-  background: var(--surface);
+  background: var(--material-floating);
   box-shadow: var(--shadow-menu);
+  -webkit-backdrop-filter: blur(var(--material-blur)) saturate(var(--material-saturation));
+  backdrop-filter: blur(var(--material-blur)) saturate(var(--material-saturation));
 }
 
 .management-tabs {
@@ -170,9 +174,11 @@
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-medium);
-  background: var(--surface);
+  background: var(--material-floating);
   box-shadow: var(--shadow-menu);
   padding: 4px;
+  -webkit-backdrop-filter: blur(var(--material-blur)) saturate(var(--material-saturation));
+  backdrop-filter: blur(var(--material-blur)) saturate(var(--material-saturation));
 }
 
 .workspace-more-menu {
@@ -267,7 +273,7 @@
   padding: 10px 12px;
   border: 0;
   border-radius: var(--radius-medium);
-  background: var(--surface);
+  background: var(--material-floating);
   box-shadow: 0 0 0 1px var(--border), var(--shadow-small);
   color: var(--text);
   font-size: var(--font-body);
@@ -276,6 +282,30 @@
   transform: translateY(8px);
   transition: opacity 160ms ease, transform 160ms ease;
   pointer-events: auto;
+  -webkit-backdrop-filter: blur(var(--material-blur)) saturate(var(--material-saturation));
+  backdrop-filter: blur(var(--material-blur)) saturate(var(--material-saturation));
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .management-button,
+  .management-panel,
+  .open-menu,
+  .toast {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .management-button,
+  .management-panel,
+  .open-menu {
+    border-color: var(--text);
+  }
+
+  .toast {
+    box-shadow: 0 0 0 1px var(--text), var(--shadow-small);
+  }
 }
 
 .toast.is-visible {
