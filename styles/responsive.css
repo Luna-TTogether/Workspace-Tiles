@@ -1,14 +1,20 @@
 
 @media (max-width: 1647px) {
-  .workspace-grid {
+  .workspace-section {
     --tile-unit: min(240px, calc((100vw - 176px) / 5));
+  }
+
+  .workspace-grid {
     grid-template-columns: repeat(5, var(--tile-unit));
   }
 }
 
 @media (max-width: 1279px) {
-  .workspace-grid {
+  .workspace-section {
     --tile-unit: min(240px, calc((100vw - 144px) / 4));
+  }
+
+  .workspace-grid {
     grid-template-columns: repeat(4, var(--tile-unit));
   }
 }
@@ -18,8 +24,11 @@
     width: calc(100% - 24px);
   }
 
-  .workspace-grid {
+  .workspace-section {
     --tile-unit: min(240px, calc((100vw - 56px) / 2));
+  }
+
+  .workspace-grid {
     grid-template-columns: repeat(2, var(--tile-unit));
   }
 
@@ -36,24 +45,23 @@
   }
 
   .search-hero {
-    min-height: 220px;
-    gap: var(--space-6);
-    padding: var(--space-6) 0 var(--space-8);
+    padding-top: var(--space-4);
   }
 
-  .search-hero h1 {
-    font-size: 24px;
-    line-height: 32px;
-    letter-spacing: -0.02em;
-  }
-
-  .search-placeholder {
+  .search-form {
     width: 100%;
     height: 44px;
   }
 
-  .workspace-grid {
+  .workspace-section {
+    margin-top: var(--space-12);
+  }
+
+  .workspace-section {
     --tile-unit: min(240px, calc((100vw - 56px) / 2));
+  }
+
+  .workspace-grid {
     grid-template-columns: repeat(2, var(--tile-unit));
   }
 

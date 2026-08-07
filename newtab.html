@@ -12,16 +12,16 @@
   </head>
   <body>
     <main class="page-shell">
-      <section class="search-hero" aria-labelledby="searchHeroTitle">
-        <h1 id="searchHeroTitle" data-i18n="今天从哪里开始？">今天从哪里开始？</h1>
-        <div class="search-placeholder" aria-hidden="true">
+      <header class="search-hero">
+        <form class="search-form" id="googleSearchForm" role="search" action="https://www.google.com/search" method="get" aria-label="Google 搜索" data-i18n-aria-label="Google 搜索">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <circle cx="11" cy="11" r="6.5"></circle>
             <path d="m16 16 4 4"></path>
           </svg>
-          <span data-i18n="搜索工作区和网站……">搜索工作区和网站……</span>
-        </div>
-      </section>
+          <label class="visually-hidden" for="googleSearchInput" data-i18n="Google 搜索">Google 搜索</label>
+          <input id="googleSearchInput" name="q" type="search" autocomplete="off" placeholder="使用 Google 搜索……" data-i18n-placeholder="使用 Google 搜索……">
+        </form>
+      </header>
 
       <section class="workspace-section" aria-label="工作区" data-i18n-aria-label="工作区">
         <section class="workspace-grid" id="workspaceGrid" aria-label="工作区" data-i18n-aria-label="工作区"></section>

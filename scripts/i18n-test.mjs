@@ -22,10 +22,16 @@ const manifestSource = readFileSync(path.join(projectRoot, "manifest.json"), "ut
 const englishLocale = JSON.parse(readFileSync(path.join(projectRoot, "_locales/en/messages.json"), "utf8"));
 const chineseLocale = JSON.parse(readFileSync(path.join(projectRoot, "_locales/zh_CN/messages.json"), "utf8"));
 const saved = new Map();
+const searchInput = {
+  dataset: { i18nPlaceholder: "使用 Google 搜索……" },
+  placeholder: "",
+};
 
 globalThis.document = {
   documentElement: { lang: "zh-CN" },
-  querySelectorAll() { return []; },
+  querySelectorAll(selector) {
+    return selector === "[data-i18n-placeholder]" ? [searchInput] : [];
+  },
 };
 globalThis.localStorage = {
   getItem(key) { return saved.get(key) ?? null; },
@@ -36,11 +42,13 @@ const i18n = await import("../src/core/i18n.js");
 await i18n.init();
 assert.equal(i18n.getLanguage(), "en");
 assert.equal(i18n.t("siteCount", { count: 2 }), "2 sites");
+assert.equal(searchInput.placeholder, "Search Google…");
 
 await i18n.setLanguage("zh-CN");
 assert.equal(i18n.getLanguage(), "zh-CN");
 assert.equal(i18n.t("新建工作区"), "新建工作区");
 assert.equal(i18n.t("siteCount", { count: 2 }), "2 个网站");
+assert.equal(searchInput.placeholder, "使用 Google 搜索……");
 
 await i18n.setLanguage("en");
 assert.equal(i18n.getLanguage(), "en");

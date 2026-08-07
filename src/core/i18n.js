@@ -181,8 +181,8 @@ const STORAGE_KEY = "workspaceTilesLanguage";
     "继续编辑": "Keep editing",
     "放弃修改": "Discard changes",
     "工作区": "Workspace",
-    "今天从哪里开始？": "Where do you want to start today?",
-    "搜索工作区和网站……": "Search workspaces and sites…",
+    "Google 搜索": "Google search",
+    "使用 Google 搜索……": "Search Google…",
     "工作区空状态": "Empty workspace state",
     "按空格键或回车键开始排序，使用方向键移动，按空格键或回车键保存，按 Escape 取消。": "Press Space or Enter to start reordering. Use the arrow keys to move. Press Space or Enter to save, or Escape to cancel.",
   };
@@ -298,6 +298,9 @@ const STORAGE_KEY = "workspaceTilesLanguage";
     });
     root.querySelectorAll("[data-i18n-title]").forEach((element) => {
       element.title = t(element.dataset.i18nTitle);
+    });
+    root.querySelectorAll("[data-i18n-placeholder]").forEach((element) => {
+      element.placeholder = t(element.dataset.i18nPlaceholder);
     });
   }
 

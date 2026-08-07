@@ -214,6 +214,10 @@ checkRequiredPatterns("src/ui/ui-components.js", uiComponents, [
 checkRequiredPatterns("newtab.html", html, [
   { pattern: /id="toastRegion"[^>]*aria-live="polite"/, message: "Toast 区域必须使用 aria-live=polite" },
   {
+    pattern: /<form[^>]*id="googleSearchForm"[^>]*role="search"[^>]*action="https:\/\/www\.google\.com\/search"[\s\S]*<input[^>]*id="googleSearchInput"[^>]*name="q"[^>]*type="search"/,
+    message: "Google 搜索表单缺少搜索语义、固定目标或查询字段",
+  },
+  {
     pattern: /href="styles\.css"[\s\S]*href="styles\/workspace\.css"[\s\S]*href="styles\/dialogs\.css"[\s\S]*href="styles\/overlays\.css"[\s\S]*href="styles\/responsive\.css"/,
     message: "新标签页缺少 CSS 模块或加载顺序错误",
   },

@@ -79,6 +79,8 @@ const emptyPageState = document.getElementById("emptyPageState");
 const backdrop = document.getElementById("modalBackdrop");
 const menuLayer = document.getElementById("menuLayer");
 const tileTemplate = document.getElementById("workspaceTileTemplate");
+const googleSearchForm = document.getElementById("googleSearchForm");
+const googleSearchInput = document.getElementById("googleSearchInput");
 
 let activeWorkspaceId = null;
 let previewPages = {};
@@ -169,6 +171,7 @@ getChromeApi()?.storage?.onChanged?.addListener((changes, areaName) => {
 
 async function init() {
   await i18n.init();
+  configureGoogleSearch();
   renderManagementEntry();
   await initializeState();
   await initializeUiState();
@@ -184,6 +187,19 @@ async function init() {
     window.history.replaceState(null, "", window.location.pathname);
     requestAnimationFrame(() => openWorkspaceForm());
   }
+}
+
+function configureGoogleSearch() {
+  googleSearchForm.addEventListener("submit", (event) => {
+    const query = googleSearchInput.value.trim();
+    if (!query) {
+      event.preventDefault();
+      googleSearchInput.value = "";
+      googleSearchInput.focus();
+      return;
+    }
+    googleSearchInput.value = query;
+  });
 }
 
 function renderManagementEntry() {
