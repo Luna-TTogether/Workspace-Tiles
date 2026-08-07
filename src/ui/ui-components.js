@@ -136,6 +136,8 @@ function createMoreIconButton(onClick) {
   button.className = "icon-button more-workspace-button";
   button.title = t("更多");
   button.ariaLabel = t("更多");
+  button.setAttribute("aria-haspopup", "menu");
+  button.setAttribute("aria-expanded", "false");
   button.innerHTML = `
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="6" cy="12" r="1.7"></circle>
@@ -303,8 +305,28 @@ function trapModalFocus(event, dialog) {
   }
 }
 
-function showMenu(menu, anchor, { initialFocus = "first" } = {}) {
+function positionMenuAtAnchor(menu, anchor, align, gap = 8, viewportPadding = 8) {
+  const anchorRect = anchor.getBoundingClientRect();
+  const menuRect = menu.getBoundingClientRect();
+  const startLeft = anchorRect.left;
+  const endLeft = anchorRect.right - menuRect.width;
+  const preferredLeft = align === "end" ? endLeft : startLeft;
+  const alternateLeft = align === "end" ? startLeft : endLeft;
+  const fits = (left) => left >= viewportPadding && left + menuRect.width <= window.innerWidth - viewportPadding;
+  const unclampedLeft = fits(preferredLeft) ? preferredLeft : fits(alternateLeft) ? alternateLeft : preferredLeft;
+  const left = Math.max(viewportPadding, Math.min(unclampedLeft, window.innerWidth - menuRect.width - viewportPadding));
+  const belowTop = anchorRect.bottom + gap;
+  const aboveTop = anchorRect.top - gap - menuRect.height;
+  const top = belowTop + menuRect.height <= window.innerHeight - viewportPadding
+    ? belowTop
+    : Math.max(viewportPadding, aboveTop);
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+}
+
+function showMenu(menu, anchor, { initialFocus = "first", align = null } = {}) {
   menuReturnFocus = anchor;
+  if (anchor?.hasAttribute?.("aria-haspopup")) anchor.setAttribute("aria-expanded", "true");
   const items = Array.from(menu.querySelectorAll('[role="menuitem"]:not([disabled]), [role="menuitemradio"]:not([disabled])'));
   menu.addEventListener("keydown", (event) => {
     const currentIndex = items.indexOf(document.activeElement);
@@ -320,6 +342,7 @@ function showMenu(menu, anchor, { initialFocus = "first" } = {}) {
   });
   menuLayer.hidden = false;
   menuLayer.append(menu);
+  if (align) positionMenuAtAnchor(menu, anchor, align);
   requestAnimationFrame(() => {
     const target = initialFocus === "last" ? items.at(-1) : items[0];
     target?.focus();

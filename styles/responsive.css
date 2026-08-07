@@ -167,7 +167,7 @@
 }
 
 @media (hover: none) {
-  .workspace-tile .tile-actions {
+  .workspace-tile .workspace-label-actions {
     opacity: 1;
     pointer-events: auto;
     transform: none;

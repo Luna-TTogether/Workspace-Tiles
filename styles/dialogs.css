@@ -545,6 +545,11 @@
   transform: scale(0.97);
 }
 
+.menu-button:not(:disabled):active,
+.more-workspace-button:not(:disabled):active {
+  transform: none;
+}
+
 .button.small {
   min-width: 0;
   height: 28px;

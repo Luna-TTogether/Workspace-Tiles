@@ -203,6 +203,7 @@ checkRequiredPatterns("src/ui/ui-components.js", uiComponents, [
   { pattern: /function showToast\(/, message: "缺少统一 Toast 反馈" },
   { pattern: /function setFieldError\(/, message: "缺少统一字段错误反馈" },
   { pattern: /function createMenuButton\(/, message: "缺少统一 Menu Button 工厂" },
+  { pattern: /function positionMenuAtAnchor\(/, message: "缺少菜单与锚点的统一对齐逻辑" },
   { pattern: /aria-haspopup[\s\S]*aria-expanded[\s\S]*ArrowDown[\s\S]*ArrowUp/, message: "Menu Button 缺少菜单 ARIA 或方向键支持" },
 ]);
 

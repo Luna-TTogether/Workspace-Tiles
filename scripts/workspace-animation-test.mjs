@@ -49,8 +49,20 @@ assert.match(expandedDialog, /const openAllButton = createMenuButton\(\{[\s\S]*?
   "完整工作区必须复用新版打开全部菜单按钮");
 assert.doesNotMatch(expandedDialog, /createSplitButton|createOpenAllIconButton/,
   "完整工作区不得继续使用旧版组合按钮或单图标按钮");
-assert.match(app, /label: node\.dataset\.size === "small" \? t\("打开"\) : t\("打开全部"\)/,
-  "小卡片必须显示紧凑的“打开”，其他卡片显示“打开全部”");
+assert.match(app, /const openAllButton = createMenuButton\(\{\s*label: t\("打开全部"\),\s*accessibleLabel: t\("打开全部"\)/,
+  "所有卡片尺寸必须显示完整的“打开全部”文案");
+assert.match(styles, /\.workspace-label-actions:has\(\[aria-expanded="true"\]\)\s*\{[\s\S]*?opacity:\s*1;[\s\S]*?pointer-events:\s*auto;/,
+  "菜单打开期间标题操作组必须保持可见和可交互");
+assert.match(app, /moreButtons\.forEach\(\(button\) => \{[\s\S]*?aria-haspopup[\s\S]*?aria-expanded/,
+  "标题行 More 按钮必须声明菜单展开状态");
+assert.match(app, /showMenu\(menu, anchor, \{ initialFocus, align: "start" \}\)/,
+  "打开全部菜单必须优先与按钮左边缘对齐");
+assert.match(app, /showMenu\(menu, anchor, \{ align: "end" \}\)/,
+  "More 菜单必须优先与按钮右边缘对齐");
+assert.match(styles, /\.menu-button:not\(:disabled\):active,\s*\.more-workspace-button:not\(:disabled\):active\s*\{[\s\S]*?transform:\s*none;/,
+  "菜单锚点按钮按下时不得缩放外框，以免定位边缘漂移");
+assert.doesNotMatch(readFileSync(path.join(projectRoot, "src/ui/ui-components.js"), "utf8"), /menu\.style\.(?:left|top) = `\$\{Math\.round\(/,
+  "菜单定位必须保留亚像素坐标，不得整数取整");
 
 assert.match(styles, /--workspace-large-card-height:\s*calc\(var\(--workspace-tile-height\) \+ var\(--workspace-tile-label-height\) \+ var\(--workspace-tile-height\) \+ var\(--workspace-tile-label-height\) \+ var\(--workspace-grid-row-gap\)\);/,
   "大卡片固定高度必须由两行卡片高度、标题高度和行间距共同计算");

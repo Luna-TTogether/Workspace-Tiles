@@ -153,7 +153,6 @@ const STORAGE_KEY = "workspaceTilesLanguage";
     "新窗口打开": "Open in new window",
     "在当前窗口打开": "Open in current window",
     "在新窗口打开": "Open in new window",
-    "打开": "Open",
     "重命名": "Rename",
     "卡片大小": "Card size",
     "小": "Small",

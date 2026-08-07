@@ -67,5 +67,11 @@ assert.doesNotMatch(html, /show-sites-button/,
   "Notes 面不得保留重复的网格切回按钮");
 assert.doesNotMatch(app, /showSitesButtons|show-sites-button/,
   "移除网格切回按钮后不得残留无效绑定逻辑");
+assert.match(html, /<header class="workspace-tile-label">[\s\S]*?<div class="workspace-label-actions">[\s\S]*?open-all-menu-slot[\s\S]*?open-workspace-button[\s\S]*?more-workspace-button[\s\S]*?<\/header>/,
+  "工作区级操作必须与标题位于同一行");
+assert.doesNotMatch(html, /workspace-card-face[\s\S]*?tile-actions/,
+  "卡片正反面内部不得残留旧操作栏");
+assert.match(workspaceStyles, /\.workspace-tile\.is-note \.open-all-menu-button\s*\{[\s\S]*?display:\s*none;/,
+  "Notes 面必须隐藏打开全部操作");
 
 console.log("Workspace Notes 测试通过：数据规范化、清单解析、首页标题、Notes 留边与精简操作均符合预期。");

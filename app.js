@@ -577,7 +577,7 @@ function renderWorkspaceTile(workspace) {
     badge.title = siteCountLabel;
   });
   const openAllButton = createMenuButton({
-    label: node.dataset.size === "small" ? t("打开") : t("打开全部"),
+    label: t("打开全部"),
     accessibleLabel: t("打开全部"),
     onMenu: (event, initialFocus) => openAllMenu(event.currentTarget, workspace, { initialFocus }),
   });
@@ -591,6 +591,8 @@ function renderWorkspaceTile(workspace) {
   moreButtons.forEach((button) => {
     button.title = t("更多");
     button.ariaLabel = t("更多");
+    button.setAttribute("aria-haspopup", "menu");
+    button.setAttribute("aria-expanded", "false");
   });
 
   setupWorkspaceNote(node, noteFace, workspace);
@@ -632,10 +634,7 @@ function renderWorkspaceTile(workspace) {
     });
     if (pageCount > 1) {
       node.classList.add("has-pagination");
-      sitesFace.insertBefore(
-        renderPreviewPagination(workspace.id, currentPage, pageCount),
-        sitesFace.querySelector(".tile-actions"),
-      );
+      sitesFace.append(renderPreviewPagination(workspace.id, currentPage, pageCount));
       tileBody.addEventListener("wheel", (event) => handlePreviewWheel(event, workspace.id, currentPage, pageCount), { passive: false });
     }
   }
@@ -970,7 +969,6 @@ function createExpandedWorkspaceNote(dialog, workspace) {
   noteFace.removeAttribute("aria-hidden");
   noteFace.removeAttribute("inert");
   noteFace.querySelector(".note-card-header")?.remove();
-  noteFace.querySelector(".tile-actions")?.remove();
   setupWorkspaceNote(dialog, noteFace, workspace, { onSaved: render });
   return noteFace;
 }
@@ -1281,7 +1279,6 @@ function openAllMenu(anchor, workspace, { initialFocus = "first" } = {}) {
   closeMenu({ restoreFocus: false });
   if (!workspace.sites.length) return;
 
-  const rect = anchor.getBoundingClientRect();
   const menu = document.createElement("div");
   menu.className = "open-menu";
   menu.setAttribute("role", "menu");
@@ -1292,9 +1289,6 @@ function openAllMenu(anchor, workspace, { initialFocus = "first" } = {}) {
     <button type="button" role="menuitem" data-action="current">${t("在当前窗口打开")}</button>
     <button type="button" role="menuitem" data-action="new">${t("在新窗口打开")}</button>
   `;
-
-  menu.style.top = `${Math.min(rect.bottom + 8, window.innerHeight - 96)}px`;
-  menu.style.left = `${Math.min(rect.left, window.innerWidth - 180)}px`;
 
   menu.addEventListener("click", (event) => {
     const action = event.target?.dataset?.action;
@@ -1308,7 +1302,7 @@ function openAllMenu(anchor, workspace, { initialFocus = "first" } = {}) {
     }
   });
 
-  showMenu(menu, anchor, { initialFocus });
+  showMenu(menu, anchor, { initialFocus, align: "start" });
 }
 
 function openWorkspaceMoreMenu(anchor, workspace) {
@@ -1319,7 +1313,6 @@ function openWorkspaceMoreMenu(anchor, workspace) {
   const faceAction = workspaceTile
     ? `<button type="button" role="menuitem" data-action="toggle-face">${t(showingNote ? "查看网站" : "查看便签")}</button>`
     : "";
-  const rect = anchor.getBoundingClientRect();
   const menu = document.createElement("div");
   menu.className = "open-menu workspace-more-menu";
   menu.setAttribute("role", "menu");
@@ -1343,9 +1336,6 @@ function openWorkspaceMoreMenu(anchor, workspace) {
     <div class="menu-divider" role="separator"></div>
     <button type="button" role="menuitem" data-action="delete" class="danger-menu-item">${t("删除工作区")}</button>
   `;
-
-  menu.style.top = `${Math.max(8, Math.min(rect.bottom + 8, window.innerHeight - 320))}px`;
-  menu.style.left = `${Math.max(8, Math.min(rect.right - 200, window.innerWidth - 208))}px`;
 
   menu.addEventListener("click", (event) => {
     const action = event.target?.dataset?.action;
@@ -1381,7 +1371,7 @@ function openWorkspaceMoreMenu(anchor, workspace) {
     }
   });
 
-  showMenu(menu, anchor);
+  showMenu(menu, anchor, { align: "end" });
 }
 
 async function updateWorkspaceTileSize(workspaceId, requestedSize) {
