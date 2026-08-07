@@ -1,6 +1,6 @@
 import { STORAGE_KEY, normalizeState } from "../core/state.js";
 import { normalizeExplicitFaviconUrl } from "../core/favicon-candidates.js";
-import { createId, getAutomaticSiteName, getSiteFallbackName, normalizeUrl } from "../core/utils.js";
+import { createId, getSiteFallbackName, normalizeUrl } from "../core/utils.js";
 import { createRecordedSiteFields } from "../core/context-time.js";
 import { readLocalStorage, writeLocalStorage } from "../core/storage.js";
 
@@ -53,7 +53,7 @@ function getDefaultWorkspace(workspaces, recentWorkspaceIds) {
   return orderWorkspacesByRecent(workspaces, recentWorkspaceIds)[0] || null;
 }
 
-function normalizeQuickAddPage(page, timeFields = null) {
+function normalizeQuickAddDraftPage(page) {
   const rawUrl = String(page?.pendingUrl || page?.url || "").trim();
   const url = normalizeUrl(rawUrl);
   if (!url) throw createQuickAddError("PAGE_UNAVAILABLE", "Current page has no saveable URL");
@@ -61,12 +61,44 @@ function normalizeQuickAddPage(page, timeFields = null) {
   const title = String(page?.title || "").trim();
   const faviconUrl = normalizeExplicitFaviconUrl(page?.favIconUrl);
   return {
-    id: createId("site"),
-    name: getAutomaticSiteName(title, url),
+    name: title.slice(0, 80) || getSiteFallbackName(url),
     url,
-    ...(timeFields || {}),
     ...(faviconUrl ? { faviconUrl } : {}),
   };
+}
+
+function normalizeQuickAddPage(page, timeFields = null) {
+  const draft = normalizeQuickAddDraftPage(page);
+  return {
+    id: createId("site"),
+    ...draft,
+    ...(timeFields || {}),
+  };
+}
+
+function prepareQuickAddDraftData(sourceState, recentWorkspaceIds, page) {
+  const state = normalizeState(sourceState);
+  const recentIds = normalizeRecentWorkspaceIds(recentWorkspaceIds, state.workspaces);
+  const draftPage = normalizeQuickAddDraftPage(page);
+  const defaultWorkspace = getDefaultWorkspace(state.workspaces, recentIds);
+  return {
+    status: defaultWorkspace ? "ready" : "empty",
+    page: draftPage,
+    workspaces: state.workspaces,
+    recentWorkspaceIds: recentIds,
+    defaultWorkspace,
+  };
+}
+
+function commitQuickAddData(sourceState, { workspaceId, name, page }, { now = Date.now() } = {}) {
+  const state = normalizeState(sourceState, { now });
+  const workspace = state.workspaces.find((item) => item.id === workspaceId);
+  if (!workspace) throw createQuickAddError("WORKSPACE_NOT_FOUND", "Target workspace no longer exists");
+
+  const site = normalizeQuickAddPage(page, createRecordedSiteFields(state, now));
+  site.name = String(name || "").trim() || getSiteFallbackName(site.url);
+  workspace.sites.push(site);
+  return { state, site, workspace };
 }
 
 function addPageToQuickAddData(sourceState, recentWorkspaceIds, page) {
@@ -155,6 +187,34 @@ async function quickAddCurrentPage(page) {
   return result;
 }
 
+async function prepareQuickAddDraft(page) {
+  const current = await loadQuickAddData({ cleanRecent: false });
+  return prepareQuickAddDraftData(current.state, current.recentWorkspaceIds, page);
+}
+
+async function commitQuickAdd(input, {
+  now = Date.now(),
+  loadData = loadQuickAddData,
+  writeStorage = writeLocalStorage,
+} = {}) {
+  const current = await loadData({ cleanRecent: false });
+  const result = commitQuickAddData(current.state, input, { now });
+  await writeStorage({ [STORAGE_KEY]: result.state });
+
+  const recentWorkspaceIds = touchRecentWorkspace(
+    current.recentWorkspaceIds,
+    result.workspace.id,
+    result.state.workspaces,
+  );
+  let recentWorkspaceWriteFailed = false;
+  try {
+    await writeStorage({ [RECENT_WORKSPACES_STORAGE_KEY]: recentWorkspaceIds });
+  } catch {
+    recentWorkspaceWriteFailed = true;
+  }
+  return { ...result, recentWorkspaceIds, recentWorkspaceWriteFailed };
+}
+
 async function updateQuickAddedSite(input) {
   const current = await loadQuickAddData();
   const result = updateQuickAddedSiteData(current.state, current.recentWorkspaceIds, input);
@@ -176,13 +236,18 @@ export {
   MAX_RECENT_WORKSPACES,
   RECENT_WORKSPACES_STORAGE_KEY,
   addPageToQuickAddData,
+  commitQuickAdd,
+  commitQuickAddData,
   deleteQuickAddedSite,
   deleteQuickAddedSiteData,
   getDefaultWorkspace,
   loadQuickAddData,
   normalizeQuickAddPage,
+  normalizeQuickAddDraftPage,
   normalizeRecentWorkspaceIds,
   orderWorkspacesByRecent,
+  prepareQuickAddDraft,
+  prepareQuickAddDraftData,
   quickAddCurrentPage,
   touchRecentWorkspace,
   updateQuickAddedSite,

@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import {
   addPageToQuickAddData,
+  commitQuickAdd,
+  commitQuickAddData,
   deleteQuickAddedSiteData,
   normalizeRecentWorkspaceIds,
   orderWorkspacesByRecent,
+  prepareQuickAddDraftData,
   touchRecentWorkspace,
   updateQuickAddedSiteData,
 } from "../src/features/quick-add.js";
@@ -72,4 +75,79 @@ assert.throws(
   (error) => error.code === "SITE_NOT_FOUND",
 );
 
-console.log("网页快捷加入测试通过：最近工作区、默认选择、添加、移动、删除和异常规则均符合预期。");
+const draftSource = createState();
+const draftSourceSnapshot = JSON.stringify(draftSource);
+const prepared = prepareQuickAddDraftData(draftSource, ["workspace-b"], {
+  title: "Draft page",
+  url: "https://example.com/draft?source=popup",
+});
+assert.equal(prepared.status, "ready");
+assert.equal(prepared.defaultWorkspace.id, "workspace-b");
+assert.equal(prepared.page.name, "Draft page");
+assert.equal("id" in prepared.page, false, "准备阶段不应创建正式 Site ID");
+assert.equal("addedAt" in prepared.page, false, "准备阶段不应创建正式加入时间");
+assert.equal(JSON.stringify(draftSource), draftSourceSnapshot, "准备 Draft 不得修改正式状态");
+
+const committedAt = Date.parse("2026-08-07T10:00:00.000Z");
+const committed = commitQuickAddData(draftSource, {
+  workspaceId: "workspace-b",
+  name: "  Confirmed name  ",
+  page: prepared.page,
+}, { now: committedAt });
+assert.equal(committed.workspace.sites.length, 1);
+assert.equal(committed.site.name, "Confirmed name");
+assert.equal(committed.site.url, "https://example.com/draft?source=popup");
+assert.equal(committed.site.addedAtOrigin, "recorded");
+assert.ok(Date.parse(committed.site.addedAt) >= committedAt);
+assert.equal(JSON.stringify(draftSource), draftSourceSnapshot, "Commit 纯函数不得覆盖调用方旧状态");
+
+const duplicate = commitQuickAddData(committed.state, {
+  workspaceId: "workspace-b",
+  name: "Second copy",
+  page: prepared.page,
+}, { now: committedAt });
+assert.equal(duplicate.workspace.sites.length, 2, "同一 URL 允许明确保存多次");
+assert.notEqual(duplicate.workspace.sites[0].id, duplicate.workspace.sites[1].id);
+
+assert.throws(
+  () => commitQuickAddData(draftSource, {
+    workspaceId: "missing",
+    name: "Missing",
+    page: prepared.page,
+  }),
+  (error) => error.code === "WORKSPACE_NOT_FOUND",
+);
+assert.equal(JSON.stringify(draftSource), draftSourceSnapshot, "目标不存在时不得写入");
+
+const writes = [];
+const asyncCommitted = await commitQuickAdd({
+  workspaceId: "workspace-a",
+  name: "Saved once",
+  page: prepared.page,
+}, {
+  now: committedAt,
+  loadData: async () => ({ state: createState(), recentWorkspaceIds: ["workspace-b"] }),
+  writeStorage: async (value) => {
+    writes.push(value);
+    if (writes.length === 2) throw new Error("recent write failed");
+  },
+});
+assert.equal(writes.length, 2);
+assert.equal(writes[0].workspaceTilesState.workspaces[0].sites.length, 1);
+assert.equal(asyncCommitted.recentWorkspaceWriteFailed, true, "最近记录失败不得回滚已保存网站");
+
+let failedWriteCalls = 0;
+await assert.rejects(commitQuickAdd({
+  workspaceId: "workspace-a",
+  name: "Must not persist",
+  page: prepared.page,
+}, {
+  loadData: async () => ({ state: createState(), recentWorkspaceIds: [] }),
+  writeStorage: async () => {
+    failedWriteCalls += 1;
+    throw new Error("state write failed");
+  },
+}));
+assert.equal(failedWriteCalls, 1, "正式状态失败后不得继续写最近 Workspace");
+
+console.log("网页快捷加入测试通过：Draft 无写入、确认保存、真实时间、重复、并发与存储失败规则均符合预期。");

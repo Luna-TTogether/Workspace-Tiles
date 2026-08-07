@@ -71,7 +71,7 @@ assert.match(html, /<header class="workspace-tile-label">[\s\S]*?<div class="wor
   "工作区级操作必须与标题位于同一行");
 assert.doesNotMatch(html, /workspace-card-face[\s\S]*?tile-actions/,
   "卡片正反面内部不得残留旧操作栏");
-assert.match(workspaceStyles, /\.workspace-tile\.is-note \.open-all-menu-button\s*\{[\s\S]*?display:\s*none;/,
-  "Notes 面必须隐藏打开全部操作");
+assert.doesNotMatch(workspaceStyles, /\.workspace-tile\.is-note \.open-all-menu-button\s*\{[\s\S]*?display:\s*none;/,
+  "Notes 面必须保留打开全部操作");
 
-console.log("Workspace Notes 测试通过：数据规范化、清单解析、首页标题、Notes 留边与精简操作均符合预期。");
+console.log("Workspace Notes 测试通过：数据规范化、清单解析、首页标题、Notes 留边与标题操作均符合预期。");

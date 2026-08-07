@@ -16,6 +16,7 @@ import {
   configureUiComponents,
   createButton,
   createDialog,
+  createDialogTitle,
   createEmptyState,
   createIconButton,
   createMenuButton,
@@ -31,6 +32,7 @@ import {
   showToast,
   trapModalFocus,
 } from "./src/ui/ui-components.js";
+import { getAiConsent, setAiConsent } from "./src/features/ai-consent.js";
 import {
   MAX_BACKUP_FILE_SIZE,
   BackupValidationError,
@@ -180,15 +182,19 @@ async function init() {
   render();
   if (getStateInitializationError()) showToast(t("无法保存数据升级，请重试。"), "error");
   const createWorkspaceRequested = new URLSearchParams(window.location.search).get("createWorkspace") === "1";
+  const selectTabsRequested = new URLSearchParams(window.location.search).get("selectTabs") === "1";
   const restoredWorkspaceId = getUiState().expandedWorkspaceId;
-  if (!createWorkspaceRequested && restoredWorkspaceId && getWorkspace(restoredWorkspaceId)) {
+  const restoresWorkspace = !createWorkspaceRequested && restoredWorkspaceId && getWorkspace(restoredWorkspaceId);
+  if (restoresWorkspace) {
     requestAnimationFrame(() => openWorkspaceDialog(restoredWorkspaceId, null, { restore: true }));
   } else if (restoredWorkspaceId) {
     void persistExpandedWorkspaceId(null);
   }
   if (createWorkspaceRequested) {
     window.history.replaceState(null, "", window.location.pathname);
-    requestAnimationFrame(() => openWorkspaceForm());
+    requestAnimationFrame(() => openWorkspaceForm(null, null, { openTabs: selectTabsRequested }));
+  } else if (!restoresWorkspace) {
+    requestAnimationFrame(() => { void maybeShowAiConsentPrompt(); });
   }
 }
 
@@ -229,7 +235,7 @@ function toggleManagementPanel(anchor) {
 }
 
 function openManagementPanel(anchor, selectedTab = "export") {
-  managementActiveTab = ["export", "import", "language", "about"].includes(selectedTab) ? selectedTab : "export";
+  managementActiveTab = ["export", "import", "general", "about"].includes(selectedTab) ? selectedTab : "export";
 
   closeMenu({ restoreFocus: false });
 
@@ -252,7 +258,7 @@ function openManagementPanel(anchor, selectedTab = "export") {
   const tabDefinitions = [
     ["export", t("exportMenuLabel")],
     ["import", t("importMenuLabel")],
-    ["language", t("语言")],
+    ["general", t("通用")],
     ["about", t("关于")],
   ];
   const tabs = tabDefinitions.map(([tabId, label]) => {
@@ -304,9 +310,189 @@ function selectManagementTab(panel, tabId) {
   content.setAttribute("aria-labelledby", `management-tab-${tabId}`);
   content.replaceChildren();
   if (tabId === "import") renderImportPanel(content);
-  else if (tabId === "language") renderLanguagePanel(content);
+  else if (tabId === "general") renderGeneralPanel(content);
   else if (tabId === "about") renderAboutPanel(content);
   else renderExportPanel(content);
+}
+
+function renderGeneralPanel(content) {
+  const heading = document.createElement("h2");
+  heading.className = "management-title";
+  heading.textContent = t("通用");
+
+  const settings = document.createElement("div");
+  settings.className = "general-settings";
+
+  const languageRow = document.createElement("div");
+  languageRow.className = "general-setting-row";
+  const languageLabel = document.createElement("label");
+  languageLabel.className = "general-setting-label";
+  languageLabel.htmlFor = "general-language-select";
+  languageLabel.textContent = t("语言");
+  const languageSelect = document.createElement("select");
+  languageSelect.id = "general-language-select";
+  languageSelect.className = "general-setting-select";
+  [["zh-CN", t("简体中文")], ["en", t("英语")]].forEach(([value, label]) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    languageSelect.append(option);
+  });
+  languageSelect.value = i18n.getLanguage();
+  languageSelect.addEventListener("change", () => { void changeLanguage(languageSelect.value, languageSelect); });
+  const languageSelectWrap = document.createElement("div");
+  languageSelectWrap.className = "general-setting-select-wrap";
+  const languageChevron = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  languageChevron.classList.add("general-setting-select-chevron");
+  languageChevron.setAttribute("viewBox", "0 0 24 24");
+  languageChevron.setAttribute("aria-hidden", "true");
+  const languageChevronPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  languageChevronPath.setAttribute("d", "m7 9 5 5 5-5");
+  languageChevron.append(languageChevronPath);
+  languageSelectWrap.append(languageSelect, languageChevron);
+  languageRow.append(languageLabel, languageSelectWrap);
+
+  const row = document.createElement("div");
+  row.className = "general-setting-row";
+  const label = document.createElement("span");
+  label.className = "general-setting-label";
+  label.textContent = "AI";
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "ai-setting-switch";
+  toggle.setAttribute("role", "switch");
+  toggle.setAttribute("aria-checked", "false");
+  toggle.setAttribute("aria-label", t("开启 AI"));
+  toggle.disabled = true;
+  toggle.setAttribute("aria-busy", "true");
+  const thumb = document.createElement("span");
+  thumb.className = "ai-setting-switch-thumb";
+  thumb.setAttribute("aria-hidden", "true");
+  toggle.append(thumb);
+  row.append(label, toggle);
+  settings.append(languageRow, row);
+  content.append(heading, settings);
+  void configureAiSetting(content, toggle);
+}
+
+async function configureAiSetting(content, toggle) {
+  try {
+    const consent = await getAiConsent();
+    if (!content.isConnected || managementActiveTab !== "general") return;
+    const enabled = consent.state === "accepted";
+    toggle.disabled = false;
+    toggle.removeAttribute("aria-busy");
+    toggle.setAttribute("aria-checked", String(enabled));
+    toggle.setAttribute("aria-label", enabled ? t("关闭 AI") : t("开启 AI"));
+    if (enabled) {
+      toggle.addEventListener("click", async () => {
+        if (toggle.disabled) return;
+        toggle.disabled = true;
+        toggle.setAttribute("aria-busy", "true");
+        try {
+          await setAiConsent("declined");
+          if (content.isConnected) renderGeneralPanelAfterReset(content);
+          showToast(t("AI 已关闭"), "success");
+        } catch {
+          showToast(t("无法保存 AI 设置，请重试。"), "error");
+          if (toggle.isConnected) {
+            toggle.disabled = false;
+            toggle.removeAttribute("aria-busy");
+          }
+        }
+      });
+    } else {
+      toggle.addEventListener("click", () => {
+        const managementButton = document.getElementById("managementButton");
+        openAiConsentDialog({
+          returnFocus: toggle,
+          onComplete: (state) => {
+            openManagementPanel(managementButton, "general");
+            if (state === "accepted") showToast(t("AI 已开启"), "success");
+          },
+        });
+      });
+    }
+  } catch {
+    toggle.disabled = false;
+    toggle.removeAttribute("aria-busy");
+    showToast(t("无法读取 AI 设置，请重试。"), "error");
+  }
+}
+
+function renderGeneralPanelAfterReset(content) {
+  content.replaceChildren();
+  renderGeneralPanel(content);
+}
+
+async function maybeShowAiConsentPrompt() {
+  try {
+    const consent = await getAiConsent();
+    if (consent.state === "unknown" && !getCurrentModal()) openAiConsentDialog();
+  } catch {
+    // 设置读取失败时不展示弹窗，也不会触发任何 AI 请求。
+  }
+}
+
+function openAiConsentDialog({ returnFocus = null, onComplete = null } = {}) {
+  const dialog = createDialog("small ai-consent-dialog");
+  dialog.querySelector(".dialog-header").append(createDialogTitle(t("开启 AI")));
+
+  const copy = document.createElement("div");
+  copy.className = "ai-consent-copy";
+  [
+    t("Workspace Tiles 可以根据打开的标签页整理 Workspace。"),
+    t("开启后，页面标题、摘要和域名会发送给 AI 服务来生成建议。"),
+    t("注意，不会发送 Cookie、表单内容或完整浏览记录。可以随时关闭。"),
+  ].forEach((message) => {
+    const paragraph = document.createElement("p");
+    paragraph.textContent = message;
+    copy.append(paragraph);
+  });
+
+  const error = document.createElement("p");
+  error.className = "field-error ai-consent-error";
+  error.setAttribute("role", "alert");
+  error.hidden = true;
+  dialog.querySelector(".dialog-content").append(copy, error);
+
+  const declineButton = createButton(t("暂不开启"));
+  const acceptButton = createButton(t("开启 AI"), null, {
+    variant: "primary",
+    loadingText: t("开启中"),
+  });
+  acceptButton.dataset.autofocus = "true";
+  dialog.querySelector(".dialog-footer").append(declineButton, acceptButton);
+
+  let saving = false;
+  const saveChoice = async (state) => {
+    if (saving) return;
+    saving = true;
+    error.hidden = true;
+    error.textContent = "";
+    declineButton.disabled = true;
+    if (state === "accepted") setButtonLoading(acceptButton, true);
+    else acceptButton.disabled = true;
+    try {
+      await setAiConsent(state);
+      closeModal();
+      onComplete?.(state);
+    } catch {
+      error.textContent = t("无法保存 AI 设置，请重试。");
+      error.hidden = false;
+      declineButton.disabled = false;
+      setButtonLoading(acceptButton, false);
+    } finally {
+      saving = false;
+    }
+  };
+
+  declineButton.addEventListener("click", () => { void saveChoice("declined"); });
+  acceptButton.addEventListener("click", () => { void saveChoice("accepted"); });
+  showModal(dialog, null, {
+    returnFocus,
+    onDismiss: () => { void saveChoice("declined"); },
+  });
 }
 
 function createManagementCopy(title, paragraphs) {
@@ -404,56 +590,20 @@ function renderImportPanel(content) {
   content.append(input, error, button);
 }
 
-function renderLanguagePanel(content) {
-  content.append(createManagementCopy(t("语言"), [
-    t("选择界面语言。更改会立即应用并保存在此设备上。"),
-  ]));
-
-  const options = document.createElement("fieldset");
-  options.className = "language-options";
-  const legend = document.createElement("legend");
-  legend.className = "visually-hidden";
-  legend.textContent = t("语言");
-  options.append(legend);
-
-  const languages = [
-    ["zh-CN", "简体中文"],
-    ["en", "英语"],
-  ];
-  languages.forEach(([value, labelKey]) => {
-    const isSelected = i18n.getLanguage() === value;
-    const label = document.createElement("label");
-    label.className = "language-radio-option";
-    const radio = document.createElement("input");
-    radio.type = "radio";
-    radio.name = "interface-language";
-    radio.value = value;
-    radio.checked = isSelected;
-    radio.addEventListener("change", () => {
-      if (radio.checked) changeLanguage(value, options);
-    });
-    const text = document.createElement("span");
-    text.textContent = t(labelKey);
-    label.append(radio, text);
-    options.append(label);
-  });
-  content.append(options);
-}
-
-async function changeLanguage(nextLanguage, fieldset) {
+async function changeLanguage(nextLanguage, select) {
   if (nextLanguage === i18n.getLanguage()) return;
-  fieldset?.setAttribute("aria-busy", "true");
-  fieldset?.querySelectorAll("input").forEach((input) => { input.disabled = true; });
+  select.disabled = true;
+  select.setAttribute("aria-busy", "true");
   try {
     await i18n.setLanguage(nextLanguage);
     const managementButton = document.getElementById("managementButton");
     managementButton.title = t("菜单");
     managementButton.ariaLabel = t("菜单");
     render();
-    openManagementPanel(managementButton, "language");
+    openManagementPanel(managementButton, "general");
   } catch {
     const managementButton = document.getElementById("managementButton");
-    openManagementPanel(managementButton, "language");
+    openManagementPanel(managementButton, "general");
     showToast(t("无法保存语言设置。请重试。"), "error");
   }
 }

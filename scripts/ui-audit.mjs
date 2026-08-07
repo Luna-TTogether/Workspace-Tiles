@@ -171,6 +171,7 @@ const sourceFiles = [
   "src/features/ai-response-cache.js",
   "src/features/forms.js",
   "src/features/quick-add.js",
+  "src/features/quick-add-ai.js",
   "src/features/page-digest.js",
   "src/features/reorder.js",
   "src/features/site-delete.js",

@@ -18,7 +18,7 @@ function configureForms(options) {
   setActiveWorkspaceId = options.setActiveWorkspaceId;
 }
 
-function openWorkspaceForm(workspace = null, returnFocus = null) {
+function openWorkspaceForm(workspace = null, returnFocus = null, { openTabs = false } = {}) {
   const isEditing = Boolean(workspace);
   const dialog = createDialog("small");
   const header = dialog.querySelector(".dialog-header");
@@ -121,6 +121,9 @@ function openWorkspaceForm(workspace = null, returnFocus = null) {
   });
 
   showModal(dialog, () => form.elements.name.focus(), { returnFocus });
+  if (!isEditing && openTabs) {
+    requestAnimationFrame(() => bulkAddActions.openTabs({ skipPermissionRequest: true }));
+  }
 }
 
 function openBookmarkPicker(tree, confirmedSelection, {
@@ -553,7 +556,7 @@ function createBulkAddAction(label, loadingText) {
 function createBulkAddActions(dialog, onSelectionChange = () => {}) {
   let bookmarkTree = [];
   let selectedBookmarkIds = new Set();
-  let openTabs = [];
+  let availableTabs = [];
   let selectedOpenTabKeys = new Set();
 
   const element = document.createElement("section");
@@ -584,11 +587,11 @@ function createBulkAddActions(dialog, onSelectionChange = () => {}) {
     onSelectionChange();
   };
 
-  tabAction.button.addEventListener("click", async () => {
+  const openTabsPicker = async ({ skipPermissionRequest = false } = {}) => {
     error.hidden = true;
     setButtonLoading(tabAction.button, true);
     try {
-      const granted = await requestTabsPermission();
+      const granted = skipPermissionRequest || await requestTabsPermission();
       if (!granted) {
         error.textContent = t("未获得标签页访问权限，你仍可手动添加网站或从书签添加。");
         error.hidden = false;
@@ -602,7 +605,7 @@ function createBulkAddActions(dialog, onSelectionChange = () => {}) {
       openTabPicker(nextOpenTabs, availableSelection, {
         onCancel: () => showModal(dialog, () => tabAction.button.focus()),
         onConfirm: (nextSelection) => {
-          openTabs = nextOpenTabs;
+          availableTabs = nextOpenTabs;
           selectedOpenTabKeys = nextSelection;
           updateSummary();
           showModal(dialog, () => tabAction.button.focus());
@@ -614,7 +617,8 @@ function createBulkAddActions(dialog, onSelectionChange = () => {}) {
     } finally {
       setButtonLoading(tabAction.button, false);
     }
-  });
+  };
+  tabAction.button.addEventListener("click", () => openTabsPicker());
 
   bookmarkAction.button.addEventListener("click", async () => {
     error.hidden = true;
@@ -653,8 +657,9 @@ function createBulkAddActions(dialog, onSelectionChange = () => {}) {
     hasSelection: () => selectedBookmarkIds.size > 0 || selectedOpenTabKeys.size > 0,
     getSites: () => [
       ...flattenSelectedBookmarks(bookmarkTree, selectedBookmarkIds),
-      ...flattenSelectedTabs(openTabs, selectedOpenTabKeys),
+      ...flattenSelectedTabs(availableTabs, selectedOpenTabKeys),
     ],
+    openTabs: openTabsPicker,
   };
 }
 

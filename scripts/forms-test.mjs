@@ -5,6 +5,7 @@ import path from "node:path";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const forms = readFileSync(path.join(projectRoot, "src/features/forms.js"), "utf8");
+const app = readFileSync(path.join(projectRoot, "app.js"), "utf8");
 const dialogStyles = readFileSync(path.join(projectRoot, "styles/dialogs.css"), "utf8");
 const responsiveStyles = readFileSync(path.join(projectRoot, "styles/responsive.css"), "utf8");
 const baseDialogStyles = dialogStyles.match(/^\.dialog \{[\s\S]*?^\}/m)?.[0] || "";
@@ -29,6 +30,12 @@ assert.doesNotMatch(forms, /bookmark-import-block|bookmark-select-button/,
   "正式表单不应保留旧版常驻导入区块");
 assert.match(forms, /classList\.add\("bulk-add-chevron"\)/,
   "批量入口应保留表示进入下一步的 SVG 箭头");
+assert.match(workspaceForm, /\{ openTabs = false \}/,
+  "新建工作区应支持从 Popup 直接进入标签页选择流程");
+assert.match(forms, /bulkAddActions\.openTabs\(\{ skipPermissionRequest: true \}\)/,
+  "Popup 已授权后应直接打开标签页选择器，不再次请求权限");
+assert.match(app, /selectTabsRequested[\s\S]*openWorkspaceForm\(null, null, \{ openTabs: selectTabsRequested \}\)/,
+  "新标签页应消费 Popup 的 selectTabs 参数");
 
 assert.match(dialogStyles, /\.bulk-add-action\.button\s*\{[^}]*height:\s*44px/s,
   "批量入口应使用原型确认的 44px 行高");

@@ -33,4 +33,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason !== "install") return;
+  getAiConsent()
+    .then((consent) => (consent.state === "unknown" ? setAiConsent("accepted") : consent))
+    .catch(() => {});
+});
+
 export { handleExtensionMessage };

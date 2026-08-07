@@ -918,10 +918,6 @@
   flex: 0 0 auto;
 }
 
-.workspace-tile.is-note .open-all-menu-button {
-  display: none;
-}
-
 .menu-button svg {
   width: 14px;
   height: 14px;

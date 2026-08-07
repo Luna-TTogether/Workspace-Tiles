@@ -78,6 +78,7 @@ async function callWorkspaceAi(task, input, {
   timeoutMs = AI_CONFIG.requestTimeoutMs,
   fetchImpl = globalThis.fetch,
   now = Date.now(),
+  signal = null,
 } = {}) {
   if (!AI_TASKS.has(task) || !validateAiTaskInput(task, input)) {
     throw createAiError("AI_INVALID_REQUEST", "AI request failed local validation");
@@ -89,6 +90,9 @@ async function callWorkspaceAi(task, input, {
   }
 
   const controller = new AbortController();
+  const abortFromCaller = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  else signal?.addEventListener?.("abort", abortFromCaller, { once: true });
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   const request = {
     version: AI_SCHEMA_VERSION,
@@ -110,6 +114,7 @@ async function callWorkspaceAi(task, input, {
     throw createAiError("AI_PROVIDER_UNAVAILABLE", "AI service is unavailable");
   } finally {
     clearTimeout(timeoutId);
+    signal?.removeEventListener?.("abort", abortFromCaller);
   }
 }
 
