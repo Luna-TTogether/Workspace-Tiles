@@ -92,6 +92,12 @@ assert.match(styles, /grid-template-rows:\s*var\(--tile-label-height, 32px\) min
   "工作区卡片离开 Grid 上下文后必须保留标题行高度回退值");
 assert.match(styles, /\.workspace-grid\s*\{[\s\S]*?grid-template-columns:\s*repeat\(6, var\(--tile-unit\)\);[\s\S]*?column-gap:\s*var\(--workspace-grid-column-gap\);[\s\S]*?row-gap:\s*var\(--workspace-grid-row-gap\);/,
   "宽屏工作区必须保持 6 列、32px 横向和 48px 纵向呼吸间距");
+assert.match(styles, /@media \(max-width:\s*1063px\)[\s\S]*?--tile-unit:\s*min\(240px, calc\(\(100vw - 88px\) \/ 3\)\);[\s\S]*?grid-template-columns:\s*repeat\(3, var\(--tile-unit\)\);/,
+  "分屏宽度必须使用 3 列工作区网格");
+assert.match(styles, /@media \(max-width:\s*699px\)[\s\S]*?--tile-unit:\s*min\(240px, calc\(\(100vw - 56px\) \/ 2\)\);[\s\S]*?grid-template-columns:\s*repeat\(2, var\(--tile-unit\)\);/,
+  "窄屏宽度必须回退为 2 列工作区网格");
+assert.doesNotMatch(styles, /grid-auto-flow:\s*(?:row\s+)?dense/,
+  "响应式网格不得使用 dense 补位改变 Workspace 的视觉顺序");
 assert.match(styles, /\.workspace-card-face\s*\{[\s\S]*?border:\s*1px solid var\(--workspace-card-border\);[\s\S]*?background:\s*var\(--workspace-card-surface\);/,
   "工作区卡片默认必须使用淡化但不透明的背景与边框 Token");
 assert.match(styles, /\.workspace-tile:hover \.workspace-card-face,[\s\S]*?background:\s*var\(--surface\);/,

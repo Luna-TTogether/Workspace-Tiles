@@ -25,16 +25,26 @@
   }
 
   .workspace-section {
-    --tile-unit: min(240px, calc((100vw - 56px) / 2));
+    --tile-unit: min(240px, calc((100vw - 88px) / 3));
   }
 
   .workspace-grid {
-    grid-template-columns: repeat(2, var(--tile-unit));
+    grid-template-columns: repeat(3, var(--tile-unit));
   }
 
   .empty-page-state {
     min-height: 280px;
     padding-top: 56px;
+  }
+}
+
+@media (max-width: 699px) {
+  .workspace-section {
+    --tile-unit: min(240px, calc((100vw - 56px) / 2));
+  }
+
+  .workspace-grid {
+    grid-template-columns: repeat(2, var(--tile-unit));
   }
 }
 
@@ -55,14 +65,6 @@
 
   .workspace-section {
     margin-top: var(--space-12);
-  }
-
-  .workspace-section {
-    --tile-unit: min(240px, calc((100vw - 56px) / 2));
-  }
-
-  .workspace-grid {
-    grid-template-columns: repeat(2, var(--tile-unit));
   }
 
   .modal-backdrop {
