@@ -498,6 +498,7 @@ function normalizeOpenTab(tab) {
     title,
     name: pageTitle || getSiteFallbackName(url) || t("未命名网站"),
     url,
+    faviconUrl: String(tab?.favIconUrl || ""),
   };
 }
 
@@ -508,6 +509,7 @@ function flattenSelectedTabs(tabs, selectedKeys) {
       id: createId("site"),
       name: tab.name,
       url: tab.url,
+      ...(tab.faviconUrl ? { faviconUrl: tab.faviconUrl } : {}),
     }));
 }
 
@@ -778,15 +780,17 @@ function openSiteForm(workspaceId, site = null, returnFocus = null) {
       return;
     }
     setButtonLoading(submitButton, true);
-    const previousSite = site ? { name: site.name, url: site.url } : null;
+    const previousSite = site ? { name: site.name, url: site.url, faviconUrl: site.faviconUrl } : null;
     let addedCount = 0;
 
     try {
       if (site) {
         const url = normalizeUrl(siteUrlInput.value);
         const name = form.elements.name.value.trim() || getSiteFallbackName(url);
+        const previousOrigin = new URL(site.url).origin;
         site.name = name;
         site.url = url;
+        if (new URL(url).origin !== previousOrigin) delete site.faviconUrl;
         await saveState();
       } else {
         const sites = [];
@@ -814,6 +818,8 @@ function openSiteForm(workspaceId, site = null, returnFocus = null) {
       if (site && previousSite) {
         site.name = previousSite.name;
         site.url = previousSite.url;
+        if (previousSite.faviconUrl) site.faviconUrl = previousSite.faviconUrl;
+        else delete site.faviconUrl;
       }
       if (!site && error?.code === "WORKSPACE_NOT_FOUND") {
         closeModal({ restoreFocus: false });

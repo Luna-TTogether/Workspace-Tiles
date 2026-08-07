@@ -9,7 +9,12 @@ const sourceState = {
     cardFace: "note",
     tileSize: "medium",
     sites: [
-      { id: "site-1", name: "OpenAI", url: "https://openai.com/" },
+      {
+        id: "site-1",
+        name: "OpenAI",
+        url: "https://openai.com/",
+        faviconUrl: "https://openai.com/favicon.svg",
+      },
       { id: "site-2", name: "书签工具", url: "javascript:void(0)" },
     ],
   }],
@@ -19,6 +24,7 @@ const backup = createBackup(sourceState, "2026-07-28T10:49:10.000Z", "0.1.1");
 assert.equal(backup.format, "workspace-tiles-backup");
 assert.equal(backup.schemaVersion, 1);
 assert.equal(backup.data.workspaces[0].sites.length, 2);
+assert.equal("faviconUrl" in backup.data.workspaces[0].sites[0], false);
 assert.equal("expandedWorkspaceId" in backup.data, false);
 
 const validated = validateBackupData(backup);

@@ -151,6 +151,10 @@ if (process.argv.includes("--self-test")) runSelfTest();
 const sourceFiles = [
   "app.js",
   "popup.js",
+  "src/core/favicon-cache.js",
+  "src/core/favicon-candidates.js",
+  "src/core/favicon-policy.js",
+  "src/core/favicon-quality.js",
   "src/core/favicon.js",
   "src/core/i18n.js",
   "src/core/state.js",

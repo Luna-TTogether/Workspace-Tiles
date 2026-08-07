@@ -1,4 +1,5 @@
 import { STORAGE_KEY, normalizeState } from "../core/state.js";
+import { normalizeExplicitFaviconUrl } from "../core/favicon-candidates.js";
 import { createId, getChromeApi, getSiteFallbackName, normalizeUrl } from "../core/utils.js";
 
 const RECENT_WORKSPACES_STORAGE_KEY = "workspaceTilesRecentWorkspaceIds";
@@ -56,10 +57,12 @@ function normalizeQuickAddPage(page) {
   if (!url) throw createQuickAddError("PAGE_UNAVAILABLE", "Current page has no saveable URL");
 
   const title = String(page?.title || "").trim();
+  const faviconUrl = normalizeExplicitFaviconUrl(page?.favIconUrl);
   return {
     id: createId("site"),
     name: title || getSiteFallbackName(url),
     url,
+    ...(faviconUrl ? { faviconUrl } : {}),
   };
 }
 

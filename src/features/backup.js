@@ -7,12 +7,18 @@ const BACKUP_SCHEMA_VERSION = 1;
 const MAX_BACKUP_FILE_SIZE = 10 * 1024 * 1024;
 
 function createBackup(sourceState, exportedAt = new Date().toISOString(), appVersion = getAppVersion()) {
+  const data = normalizeState(sourceState);
   return {
     format: BACKUP_FORMAT,
     schemaVersion: BACKUP_SCHEMA_VERSION,
     exportedAt,
     appVersion,
-    data: normalizeState(sourceState),
+    data: {
+      workspaces: data.workspaces.map((workspace) => ({
+        ...workspace,
+        sites: workspace.sites.map(({ faviconUrl, ...site }) => site),
+      })),
+    },
   };
 }
 

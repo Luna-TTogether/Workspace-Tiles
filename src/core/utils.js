@@ -1,4 +1,5 @@
 import { t } from "./i18n.js";
+import { getFaviconRequestPolicy } from "./favicon-policy.js";
 
 const FAVICON_REQUEST_SIZE = 128;
 
@@ -51,9 +52,10 @@ function isJavascriptUrl(url) {
 
 function getFaviconUrl(url) {
   const chromeApi = getChromeApi();
-  if (!chromeApi?.runtime?.getURL || !isHttpUrl(url)) return "";
+  const requestPolicy = getFaviconRequestPolicy(url);
+  if (!chromeApi?.runtime?.getURL || !requestPolicy) return "";
   const faviconUrl = new URL(chromeApi.runtime.getURL("/_favicon/"));
-  faviconUrl.searchParams.set("pageUrl", url);
+  faviconUrl.searchParams.set("pageUrl", requestPolicy.pageUrl);
   faviconUrl.searchParams.set("size", String(FAVICON_REQUEST_SIZE));
   faviconUrl.searchParams.set("allowGoogleServerFallback", "0");
   faviconUrl.searchParams.set("forceEmptyDefaultFavicon", "1");

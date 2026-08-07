@@ -12,6 +12,7 @@
     "128": "icons/icon128.png"
   },
   "permissions": ["storage", "activeTab", "favicon"],
+  "host_permissions": ["https://t2.gstatic.cn/*"],
   "optional_permissions": ["bookmarks", "tabs"],
   "action": {
     "default_title": "__MSG_extensionName__",

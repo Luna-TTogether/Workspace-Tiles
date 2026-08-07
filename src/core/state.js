@@ -1,4 +1,5 @@
 import { t } from "./i18n.js";
+import { normalizeExplicitFaviconUrl } from "./favicon-candidates.js";
 import { createId, getChromeApi, getSiteFallbackName, normalizeUrl } from "./utils.js";
 import { normalizeCardFace, normalizeNote } from "../features/workspace-notes.js";
 
@@ -169,10 +170,12 @@ function normalizeSite(site) {
   const url = normalizeUrl(site.url);
   if (!url) return null;
   const name = String(site.name || getSiteFallbackName(url)).trim() || getSiteFallbackName(url);
+  const faviconUrl = normalizeExplicitFaviconUrl(site.faviconUrl);
   return {
     id: site.id || createId("site"),
     name,
     url,
+    ...(faviconUrl ? { faviconUrl } : {}),
   };
 }
 

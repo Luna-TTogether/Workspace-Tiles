@@ -32,11 +32,13 @@ assert.deepEqual(
 const added = addPageToQuickAddData(createState(), ["workspace-b"], {
   title: "  Example page  ",
   url: "https://example.com/path",
+  favIconUrl: "https://cdn.example.com/favicon.svg",
 });
 assert.equal(added.status, "added");
 assert.equal(added.workspace.id, "workspace-b");
 assert.equal(added.site.name, "Example page");
 assert.equal(added.workspace.sites[0].url, "https://example.com/path");
+assert.equal(added.workspace.sites[0].faviconUrl, "https://cdn.example.com/favicon.svg");
 assert.deepEqual(added.recentWorkspaceIds, ["workspace-b"]);
 
 const moved = updateQuickAddedSiteData(added.state, added.recentWorkspaceIds, {
@@ -46,6 +48,7 @@ const moved = updateQuickAddedSiteData(added.state, added.recentWorkspaceIds, {
 });
 assert.equal(moved.state.workspaces[1].sites.length, 0);
 assert.equal(moved.state.workspaces[2].sites[0].name, "Renamed");
+assert.equal(moved.state.workspaces[2].sites[0].faviconUrl, "https://cdn.example.com/favicon.svg");
 assert.deepEqual(moved.recentWorkspaceIds, ["workspace-c", "workspace-b"]);
 
 const deleted = deleteQuickAddedSiteData(moved.state, added.site.id);
