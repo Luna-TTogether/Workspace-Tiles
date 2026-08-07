@@ -100,9 +100,23 @@ assert.doesNotMatch(styles, /grid-auto-flow:\s*(?:row\s+)?dense/,
   "响应式网格不得使用 dense 补位改变 Workspace 的视觉顺序");
 assert.match(styles, /\.workspace-card-face\s*\{[\s\S]*?border:\s*1px solid var\(--workspace-card-border\);[\s\S]*?background:\s*var\(--workspace-card-surface\);/,
   "工作区卡片默认必须使用淡化但不透明的背景与边框 Token");
-assert.match(styles, /\.workspace-tile:hover \.workspace-card-face,[\s\S]*?background:\s*var\(--surface\);/,
-  "工作区卡片悬停或聚焦时必须恢复清晰表面");
+assert.match(styles, /\.workspace-tile:hover \.workspace-card-face,[\s\S]*?background:\s*var\(--workspace-card-hover-surface\);/,
+  "工作区卡片悬停或聚焦时必须使用共享的文件夹悬浮表面");
 assert.match(styles, /\.workspace-tile\.is-dragging\s*\{[\s\S]*?opacity:\s*0;/,
   "工作区拖动时必须隐藏原位源卡片，避免标题行出现灰色占位框");
+assert.match(styles, /\.workspace-tile\.workspace-drag-preview\s*\{[\s\S]*?contain:\s*layout style;/,
+  "拖动预览不得使用 paint containment 裁切阴影形成矩形底");
+assert.match(styles, /\.workspace-drag-preview \.workspace-card-face\s*\{[\s\S]*?box-shadow:\s*var\(--shadow-card\);/,
+  "拖动预览应使用卡片级阴影，避免出现过重的 Modal 阴影");
+assert.match(styles, /\.icon-button\s*\{[\s\S]*?place-items:\s*center;[\s\S]*?padding:\s*0;[\s\S]*?line-height:\s*0;/,
+  "纯图标按钮必须清除原生内边距和行盒，保证图标在按钮内精确居中");
+assert.match(styles, /\.icon-button svg\s*\{[\s\S]*?display:\s*block;/,
+  "纯图标按钮内的 SVG 必须使用块级盒，避免基线导致视觉偏移");
+assert.match(app, /const TILE_PAGE_SIZES\s*=\s*\{[\s\S]*?small:\s*4,[\s\S]*?medium:\s*8,[\s\S]*?large:\s*20,/,
+  "大卡片必须按 4×5 每页显示 20 个网站");
+assert.match(styles, /\.workspace-tile\[data-size="large"\] \.favicon-preview\s*\{[\s\S]*?grid-template-rows:\s*repeat\(5, 80px\);[\s\S]*?row-gap:\s*var\(--space-6\);/,
+  "大卡片必须使用五行宽松网格，并为分页保留底部安全区");
+assert.match(styles, /\.workspace-tile\[data-size="large"\] \.favicon-preview-cell\s*\{[\s\S]*?height:\s*80px;[\s\S]*?place-items:\s*start center;/,
+  "大卡片第一行必须与小中卡片共用顶部起始基线");
 
 console.log("工作区动画契约测试通过：原版转场、无模糊遮罩、收起弹窗快照清理、状态恢复及共享尺寸均保持完整。");

@@ -7,7 +7,7 @@ body.quick-add-body {
   width: 448px;
   overflow: hidden;
   border-radius: var(--radius-medium);
-  background: var(--surface);
+  background: var(--surface-raised);
 }
 
 .quick-add-shell {
@@ -16,7 +16,7 @@ body.quick-add-body {
   padding: 0;
   overflow: hidden;
   border-radius: inherit;
-  background: var(--surface);
+  background: var(--surface-raised);
 }
 
 .quick-add-dialog {
@@ -27,6 +27,7 @@ body.quick-add-body {
   max-height: none;
   border: 0;
   border-radius: inherit;
+  background: var(--surface-raised);
   box-shadow: none;
 }
 

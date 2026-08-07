@@ -8,22 +8,23 @@
 
 :root {
   color-scheme: light dark;
-  /* Geist color roles: backgrounds, component states, borders, text. */
-  --background-1: #ffffff;
-  --background-2: #fafafa;
-  --gray-1: #f2f2f2;
-  --gray-2: #ebebeb;
-  --gray-3: #e6e6e6;
-  --gray-4: #d4d4d4;
-  --gray-7: #8f8f8f;
-  --gray-9: #666666;
-  --gray-10: #171717;
-  --blue-9: #0068d6;
+  /* Spatial Calm: a cool canvas, warm content planes, quiet neutral ink. */
+  --background-1: #fffefa;
+  --background-2: #eef1f3;
+  --gray-1: #f4f5f5;
+  --gray-2: #e4e7e8;
+  --gray-3: #dadddf;
+  --gray-4: #c8cccf;
+  --gray-7: #8a9197;
+  --gray-9: #687077;
+  --gray-10: #202326;
+  --blue-9: #2878c7;
   --red-9: #e5484d;
 
   --page: var(--background-2);
   --surface: var(--background-1);
-  --surface-subtle: var(--background-2);
+  --surface-subtle: color-mix(in srgb, var(--surface) 48%, var(--page));
+  --surface-raised: #fffefa;
   --surface-hover: var(--gray-1);
   --surface-active: var(--gray-2);
   --text: var(--gray-10);
@@ -32,7 +33,7 @@
   --border: var(--gray-2);
   --border-strong: var(--gray-4);
   --accent: var(--gray-10);
-  --accent-hover: #383838;
+  --accent-hover: #3a3e42;
   --accent-soft: var(--gray-1);
   --action: var(--blue-9);
   --action-soft: color-mix(in srgb, var(--action) 10%, var(--surface));
@@ -41,24 +42,29 @@
   --danger: var(--red-9);
   --on-danger: #ffffff;
   --success: #1a7f37;
-  --backdrop: rgba(0, 0, 0, 0.32);
+  --backdrop: rgba(27, 32, 36, 0.28);
 
-  /* Floating materials preserve context while keeping foreground text crisp. */
-  --material-raised: color-mix(in srgb, var(--surface) 92%, transparent);
-  --material-floating: color-mix(in srgb, var(--surface) 86%, transparent);
-  --material-blur: 24px;
-  --material-saturation: 160%;
-  --workspace-card-surface: color-mix(in srgb, var(--surface) 45%, var(--page));
-  --workspace-card-border: color-mix(in srgb, var(--border) 64%, transparent);
+  /* Translucency belongs to local floating UI, never the whole canvas. */
+  --material-raised: color-mix(in srgb, var(--surface-raised) 96%, transparent);
+  --material-floating: color-mix(in srgb, var(--surface-raised) 90%, transparent);
+  --material-blur: 20px;
+  --material-saturation: 125%;
+  --workspace-card-surface: color-mix(in srgb, var(--surface) 36%, var(--page));
+  --workspace-card-hover-surface: color-mix(in srgb, var(--surface) 56%, var(--page));
+  --workspace-card-border: color-mix(in srgb, var(--border) 38%, transparent);
+  --workspace-card-hover-border: color-mix(in srgb, var(--border-strong) 44%, transparent);
+  --floating-border: color-mix(in srgb, var(--border-strong) 62%, transparent);
 
   /* Geist material levels. */
   --radius-base: 6px;
   --radius-medium: 12px;
   --radius-fullscreen: 16px;
   --radius-pill: 999px;
-  --shadow-small: 0 2px 4px rgba(0, 0, 0, 0.08);
-  --shadow-menu: 0 8px 30px rgba(0, 0, 0, 0.12);
-  --shadow-modal: 0 16px 48px rgba(0, 0, 0, 0.16);
+  --shadow-small: 0 1px 2px rgba(30, 35, 39, 0.06), 0 4px 12px rgba(30, 35, 39, 0.04);
+  --shadow-card: 0 1px 2px rgba(30, 35, 39, 0.05), 0 10px 28px rgba(30, 35, 39, 0.07);
+  --shadow-menu: 0 2px 6px rgba(30, 35, 39, 0.08), 0 18px 48px rgba(30, 35, 39, 0.14);
+  --shadow-modal: 0 4px 12px rgba(30, 35, 39, 0.10), 0 32px 80px rgba(30, 35, 39, 0.18);
+  --shadow-toast: 0 2px 6px rgba(30, 35, 39, 0.08), 0 12px 36px rgba(30, 35, 39, 0.12);
 
   /* 4px spatial grid. */
   --space-1: 4px;
@@ -102,47 +108,61 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background-1: #0a0a0a;
-    --background-2: #000000;
-    --gray-1: #1a1a1a;
-    --gray-2: #1f1f1f;
-    --gray-3: #292929;
-    --gray-4: #3d3d3d;
-    --gray-7: #737373;
-    --gray-9: #a1a1a1;
-    --gray-10: #ededed;
+    --background-1: #181a1c;
+    --background-2: #101214;
+    --gray-1: #202326;
+    --gray-2: #292c2f;
+    --gray-3: #34383c;
+    --gray-4: #454a4f;
+    --gray-7: #737b82;
+    --gray-9: #a8afb5;
+    --gray-10: #f0f2f3;
     --blue-9: #52a8ff;
     --red-9: #ff6166;
     --success: #3ecf8e;
-    --accent-hover: #cccccc;
+    --surface-raised: #202326;
+    --accent-hover: #d9dcde;
     --action-soft: color-mix(in srgb, var(--action) 16%, var(--surface));
     --action-active: color-mix(in srgb, var(--action) 24%, var(--surface));
-    --backdrop: rgba(0, 0, 0, 0.64);
-    --shadow-small: 0 2px 4px rgba(0, 0, 0, 0.28);
-    --shadow-menu: 0 8px 30px rgba(0, 0, 0, 0.48);
-    --shadow-modal: 0 16px 48px rgba(0, 0, 0, 0.56);
+    --backdrop: rgba(3, 5, 6, 0.68);
+    --material-raised: color-mix(in srgb, var(--surface-raised) 97%, transparent);
+    --material-floating: color-mix(in srgb, var(--surface-raised) 92%, transparent);
+    --workspace-card-surface: color-mix(in srgb, var(--surface) 68%, var(--page));
+    --workspace-card-hover-surface: color-mix(in srgb, var(--surface) 86%, var(--page));
+    --workspace-card-border: color-mix(in srgb, var(--border) 58%, transparent);
+    --workspace-card-hover-border: color-mix(in srgb, var(--border-strong) 64%, transparent);
+    --floating-border: color-mix(in srgb, var(--border-strong) 76%, transparent);
+    --shadow-small: 0 1px 2px rgba(0, 0, 0, 0.32), 0 6px 18px rgba(0, 0, 0, 0.20);
+    --shadow-card: 0 2px 4px rgba(0, 0, 0, 0.28), 0 14px 36px rgba(0, 0, 0, 0.26);
+    --shadow-menu: 0 3px 10px rgba(0, 0, 0, 0.40), 0 22px 56px rgba(0, 0, 0, 0.44);
+    --shadow-modal: 0 6px 18px rgba(0, 0, 0, 0.44), 0 36px 96px rgba(0, 0, 0, 0.58);
+    --shadow-toast: 0 3px 10px rgba(0, 0, 0, 0.36), 0 16px 40px rgba(0, 0, 0, 0.40);
   }
 }
 
 @media (prefers-reduced-transparency: reduce) {
   :root {
-    --material-raised: var(--surface);
-    --material-floating: var(--surface);
+    --material-raised: var(--surface-raised);
+    --material-floating: var(--surface-raised);
     --material-blur: 0px;
     --material-saturation: 100%;
     --workspace-card-surface: var(--surface);
     --workspace-card-border: var(--border-strong);
+    --workspace-card-hover-surface: var(--surface);
+    --workspace-card-hover-border: var(--border-strong);
   }
 }
 
 @media (prefers-contrast: more) {
   :root {
-    --material-raised: var(--surface);
-    --material-floating: var(--surface);
+    --material-raised: var(--surface-raised);
+    --material-floating: var(--surface-raised);
     --material-blur: 0px;
     --material-saturation: 100%;
     --workspace-card-surface: var(--surface);
     --workspace-card-border: var(--border-strong);
+    --workspace-card-hover-surface: var(--surface);
+    --workspace-card-hover-border: var(--border-strong);
   }
 }
 

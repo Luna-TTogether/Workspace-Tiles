@@ -30,7 +30,7 @@
 .search-form:hover,
 .search-form:focus-within {
   border-color: var(--border-strong);
-  box-shadow: var(--shadow-small);
+  box-shadow: var(--shadow-card);
 }
 
 .search-form svg {
@@ -226,7 +226,7 @@
   transform: translate3d(var(--drag-x), var(--drag-y), 0) scale(0.985) !important;
   transform-origin: center;
   transition: opacity 100ms ease;
-  contain: paint;
+  contain: layout style;
   will-change: transform;
 }
 
@@ -256,7 +256,7 @@
 
 .workspace-drag-preview .workspace-card-face {
   border-color: var(--border-strong);
-  box-shadow: var(--shadow-modal);
+  box-shadow: var(--shadow-card);
 }
 
 .native-drag-image {
@@ -300,9 +300,9 @@
 .workspace-tile:focus-within .workspace-card-face,
 .workspace-tile:has(.workspace-label-actions [aria-expanded="true"]) .workspace-card-face,
 .add-workspace-tile:hover {
-  border-color: var(--border-strong);
-  background: var(--surface);
-  box-shadow: var(--shadow-small);
+  border-color: var(--workspace-card-hover-border);
+  background: var(--workspace-card-hover-surface);
+  box-shadow: var(--shadow-card);
 }
 
 .workspace-tile-label {
@@ -355,6 +355,7 @@
 .workspace-label-actions .icon-button {
   width: 24px;
   height: 24px;
+  flex: 0 0 24px;
 }
 
 .workspace-label-actions .icon-button svg {
@@ -646,7 +647,8 @@
 
 .workspace-tile[data-size="large"] .favicon-preview {
   grid-template-columns: repeat(8, minmax(0, 1fr));
-  grid-template-rows: repeat(4, 88px);
+  grid-template-rows: repeat(5, 80px);
+  row-gap: var(--space-6);
 }
 
 .favicon-preview-cell {
@@ -849,14 +851,16 @@
 }
 
 .workspace-tile[data-size="large"] .favicon-preview-cell {
-  height: 88px;
+  height: 80px;
+  place-items: start center;
 }
 
 .workspace-tile[data-size="large"] .favicon-mini {
   width: 80px;
   height: 80px;
+  justify-content: flex-start;
   gap: 4px;
-  padding: 2px 4px;
+  padding: 3px 4px;
 }
 
 .workspace-tile[data-size="large"] .favicon-visual {
@@ -943,11 +947,13 @@
   place-items: center;
   width: 30px;
   height: 30px;
+  padding: 0;
   border: 0;
   border-radius: var(--radius-base);
   background: transparent;
   cursor: pointer;
   color: var(--muted);
+  line-height: 0;
   transition: background 120ms ease, color 120ms ease, transform 80ms ease-out;
 }
 
@@ -966,6 +972,7 @@
 }
 
 .icon-button svg {
+  display: block;
   width: 15px;
   height: 15px;
   fill: none;

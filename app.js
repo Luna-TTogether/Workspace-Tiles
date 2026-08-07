@@ -92,7 +92,7 @@ const tileSizeSavePending = new Set();
 const TILE_PAGE_SIZES = {
   small: 4,
   medium: 8,
-  large: 16,
+  large: 20,
 };
 
 configureReorder({ render });
