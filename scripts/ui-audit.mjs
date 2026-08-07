@@ -150,7 +150,10 @@ if (process.argv.includes("--self-test")) runSelfTest();
 
 const sourceFiles = [
   "app.js",
+  "background.js",
   "popup.js",
+  "src/config/ai-config.js",
+  "src/core/context-time.js",
   "src/core/favicon-cache.js",
   "src/core/favicon-candidates.js",
   "src/core/favicon-policy.js",
@@ -158,14 +161,22 @@ const sourceFiles = [
   "src/core/favicon.js",
   "src/core/i18n.js",
   "src/core/state.js",
+  "src/core/storage.js",
   "src/core/utils.js",
   "src/features/backup.js",
+  "src/features/ai-auth.js",
+  "src/features/ai-client.js",
+  "src/features/ai-consent.js",
+  "src/features/ai-schema.js",
+  "src/features/ai-response-cache.js",
   "src/features/forms.js",
   "src/features/quick-add.js",
+  "src/features/page-digest.js",
   "src/features/reorder.js",
   "src/features/site-delete.js",
   "src/features/workspace-note-card.js",
   "src/features/workspace-notes.js",
+  "src/features/workspace-draft.js",
   "src/ui/ui-components.js",
 ];
 sourceFiles.forEach(runSyntaxCheck);

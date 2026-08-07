@@ -11,12 +11,19 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": ["storage", "activeTab", "favicon"],
-  "host_permissions": ["https://t2.gstatic.cn/*"],
+  "permissions": ["storage", "activeTab", "favicon", "scripting"],
+  "host_permissions": [
+    "https://t2.gstatic.cn/*",
+    "https://yjgaesbstakiaciawceb.supabase.co/*"
+  ],
   "optional_permissions": ["bookmarks", "tabs"],
   "action": {
     "default_title": "__MSG_extensionName__",
     "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
   },
   "commands": {
     "_execute_action": {

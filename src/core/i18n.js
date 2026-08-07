@@ -46,6 +46,7 @@ const STORAGE_KEY = "workspaceTilesLanguage";
     "简体中文": "Simplified Chinese",
     "英语": "English",
     "无法保存语言设置。请重试。": "Couldn’t save the language setting. Try again.",
+    "无法保存数据升级，请重试。": "Couldn’t save the data upgrade. Try again.",
     "未命名工作区": "Untitled workspace",
     "未命名网站": "Untitled site",
     "还没有工作区": "No workspaces yet",

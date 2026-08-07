@@ -1,5 +1,6 @@
 import { t } from "../core/i18n.js";
 import { getState, getWorkspace, saveState } from "../core/state.js";
+import { RECORDED_TIME_ORIGIN, createRecordedWorkspaceFields } from "../core/context-time.js";
 import { createId, getAutomaticSiteName, getChromeApi, getSiteFallbackName, getUrlValidationError, normalizeUrl } from "../core/utils.js";
 import { closeModal, createButton, createDialog, createDialogTitle, createEmptyState, createIconButton, getCurrentModal, setButtonLoading, setFieldError, showModal, showToast } from "../ui/ui-components.js";
 
@@ -88,8 +89,19 @@ function openWorkspaceForm(workspace = null, returnFocus = null) {
       if (workspace) {
         workspace.name = name;
       } else {
-        const sites = bulkAddActions.getSites();
-        getState().workspaces.push({ id: newWorkspaceId, name, tileSize: "small", sites });
+        const workspaceTime = createRecordedWorkspaceFields(getState());
+        const sites = bulkAddActions.getSites().map((site) => ({
+          ...site,
+          addedAt: workspaceTime.createdAt,
+          addedAtOrigin: RECORDED_TIME_ORIGIN,
+        }));
+        getState().workspaces.push({
+          id: newWorkspaceId,
+          name,
+          tileSize: "small",
+          ...workspaceTime,
+          sites,
+        });
       }
 
       await saveState();

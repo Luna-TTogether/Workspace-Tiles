@@ -2,12 +2,20 @@ import { t } from "./i18n.js";
 import { normalizeExplicitFaviconUrl } from "./favicon-candidates.js";
 import { createId, getChromeApi, getSiteFallbackName, normalizeUrl } from "./utils.js";
 import { normalizeCardFace, normalizeNote } from "../features/workspace-notes.js";
+import {
+  CONTEXT_STATE_SCHEMA_VERSION,
+  getLatestRecordedAt,
+  getLegacyAt,
+  getMigrationAt,
+  normalizeEntityTime,
+} from "./context-time.js";
 
 const STORAGE_KEY = "workspaceTilesState";
 const UI_STORAGE_KEY = "workspaceTilesUiState";
 const TILE_SIZES = new Set(["small", "medium", "large"]);
-let state = { workspaces: [] };
+let state = normalizeState({ workspaces: [] });
 let uiState = { expandedWorkspaceId: null };
+let stateInitializationError = null;
 
 function getState() {
   return state;
@@ -19,6 +27,7 @@ function setState(nextState) {
 }
 
 function initializeState() {
+  stateInitializationError = null;
   return new Promise((resolve) => {
     const chromeApi = getChromeApi();
     if (!chromeApi?.storage?.local) {
@@ -28,14 +37,34 @@ function initializeState() {
     }
 
     chromeApi.storage.local.get(STORAGE_KEY, (result) => {
-      state = normalizeState(result[STORAGE_KEY]);
-      resolve(state);
+      if (chromeApi.runtime?.lastError) {
+        stateInitializationError = new Error(chromeApi.runtime.lastError.message);
+        state = normalizeState({ workspaces: [] });
+        resolve(state);
+        return;
+      }
+      const storedState = result[STORAGE_KEY];
+      state = normalizeState(storedState);
+      if (JSON.stringify(storedState) === JSON.stringify(state)) {
+        resolve(state);
+        return;
+      }
+      chromeApi.storage.local.set({ [STORAGE_KEY]: state }, () => {
+        if (chromeApi.runtime?.lastError) {
+          stateInitializationError = new Error(chromeApi.runtime.lastError.message);
+        }
+        resolve(state);
+      });
     });
   });
 }
 
 function getUiState() {
   return uiState;
+}
+
+function getStateInitializationError() {
+  return stateInitializationError;
 }
 
 function initializeUiState() {
@@ -117,11 +146,21 @@ function loadStateForUpdate() {
 }
 
 function readLocalFallback() {
+  let storedState = null;
   try {
-    return normalizeState(JSON.parse(localStorage.getItem(STORAGE_KEY)));
+    storedState = JSON.parse(localStorage.getItem(STORAGE_KEY));
   } catch {
-    return { workspaces: [] };
+    storedState = null;
   }
+  const normalized = normalizeState(storedState);
+  if (JSON.stringify(storedState) !== JSON.stringify(normalized)) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+    } catch (error) {
+      stateInitializationError = error;
+    }
+  }
+  return normalized;
 }
 
 function readLocalUiFallback() {
@@ -145,36 +184,52 @@ function normalizeUiState(value) {
   };
 }
 
-function normalizeState(value) {
-  if (!value || !Array.isArray(value.workspaces)) {
-    return { workspaces: [] };
-  }
-
-  return {
-    workspaces: value.workspaces.map((workspace) => ({
+function normalizeState(value, { now = Date.now() } = {}) {
+  const source = value && Array.isArray(value.workspaces) ? value : { workspaces: [] };
+  const contextTimeMigratedAt = getMigrationAt(source, now);
+  const legacyAt = getLegacyAt(contextTimeMigratedAt);
+  const workspaces = source.workspaces.map((workspace) => {
+    const workspaceTime = normalizeEntityTime(workspace.createdAt, workspace.createdAtOrigin, legacyAt);
+    return {
       id: workspace.id || createId("workspace"),
       name: String(workspace.name || t("未命名工作区")).trim() || t("未命名工作区"),
       note: normalizeNote(workspace.note),
       cardFace: normalizeCardFace(workspace.cardFace),
       tileSize: normalizeTileSize(workspace.tileSize),
+      createdAt: workspaceTime.timestamp,
+      createdAtOrigin: workspaceTime.origin,
       sites: Array.isArray(workspace.sites)
-        ? workspace.sites.map((site) => normalizeSite(site)).filter(Boolean)
+        ? workspace.sites.map((site) => normalizeSite(site, legacyAt)).filter(Boolean)
         : [],
-    })),
+    };
+  });
+  const normalized = {
+    schemaVersion: CONTEXT_STATE_SCHEMA_VERSION,
+    contextTimeMigratedAt,
+    lastRecordedAt: contextTimeMigratedAt,
+    workspaces,
   };
+  normalized.lastRecordedAt = getLatestRecordedAt(normalized, contextTimeMigratedAt);
+  return normalized;
 }
 
-function normalizeSite(site) {
+function normalizeSite(site, fallbackAt = null) {
   if (!site || !site.url) return null;
 
   const url = normalizeUrl(site.url);
   if (!url) return null;
   const name = String(site.name || getSiteFallbackName(url)).trim() || getSiteFallbackName(url);
   const faviconUrl = normalizeExplicitFaviconUrl(site.faviconUrl);
+  const migrationAt = fallbackAt
+    ? new Date(Date.parse(fallbackAt) + 1).toISOString()
+    : getMigrationAt(null);
+  const siteTime = normalizeEntityTime(site.addedAt, site.addedAtOrigin, fallbackAt || getLegacyAt(migrationAt));
   return {
     id: site.id || createId("site"),
     name,
     url,
+    addedAt: siteTime.timestamp,
+    addedAtOrigin: siteTime.origin,
     ...(faviconUrl ? { faviconUrl } : {}),
   };
 }
@@ -187,6 +242,7 @@ export {
   STORAGE_KEY,
   UI_STORAGE_KEY,
   getState,
+  getStateInitializationError,
   getUiState,
   getWorkspace,
   initializeState,

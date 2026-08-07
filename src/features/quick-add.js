@@ -1,6 +1,8 @@
 import { STORAGE_KEY, normalizeState } from "../core/state.js";
 import { normalizeExplicitFaviconUrl } from "../core/favicon-candidates.js";
-import { createId, getAutomaticSiteName, getChromeApi, getSiteFallbackName, normalizeUrl } from "../core/utils.js";
+import { createId, getAutomaticSiteName, getSiteFallbackName, normalizeUrl } from "../core/utils.js";
+import { createRecordedSiteFields } from "../core/context-time.js";
+import { readLocalStorage, writeLocalStorage } from "../core/storage.js";
 
 const RECENT_WORKSPACES_STORAGE_KEY = "workspaceTilesRecentWorkspaceIds";
 const MAX_RECENT_WORKSPACES = 5;
@@ -51,7 +53,7 @@ function getDefaultWorkspace(workspaces, recentWorkspaceIds) {
   return orderWorkspacesByRecent(workspaces, recentWorkspaceIds)[0] || null;
 }
 
-function normalizeQuickAddPage(page) {
+function normalizeQuickAddPage(page, timeFields = null) {
   const rawUrl = String(page?.pendingUrl || page?.url || "").trim();
   const url = normalizeUrl(rawUrl);
   if (!url) throw createQuickAddError("PAGE_UNAVAILABLE", "Current page has no saveable URL");
@@ -62,6 +64,7 @@ function normalizeQuickAddPage(page) {
     id: createId("site"),
     name: getAutomaticSiteName(title, url),
     url,
+    ...(timeFields || {}),
     ...(faviconUrl ? { faviconUrl } : {}),
   };
 }
@@ -72,7 +75,7 @@ function addPageToQuickAddData(sourceState, recentWorkspaceIds, page) {
   const workspace = getDefaultWorkspace(state.workspaces, recentIds);
   if (!workspace) return { status: "empty", state, recentWorkspaceIds: [] };
 
-  const site = normalizeQuickAddPage(page);
+  const site = normalizeQuickAddPage(page, createRecordedSiteFields(state));
   workspace.sites.push(site);
   return {
     status: "added",
@@ -128,51 +131,14 @@ function deleteQuickAddedSiteData(sourceState, siteId) {
   return { state, site: location.site, workspace: location.workspace };
 }
 
-function readStorage(keys) {
-  const chromeApi = getChromeApi();
-  if (!chromeApi?.storage?.local) {
-    const result = {};
-    keys.forEach((key) => {
-      try {
-        result[key] = JSON.parse(localStorage.getItem(key));
-      } catch {
-        result[key] = null;
-      }
-    });
-    return Promise.resolve(result);
-  }
-
-  return new Promise((resolve, reject) => {
-    chromeApi.storage.local.get(keys, (result) => {
-      if (chromeApi.runtime?.lastError) reject(new Error(chromeApi.runtime.lastError.message));
-      else resolve(result);
-    });
-  });
-}
-
-function writeStorage(values) {
-  const chromeApi = getChromeApi();
-  if (!chromeApi?.storage?.local) {
-    Object.entries(values).forEach(([key, value]) => localStorage.setItem(key, JSON.stringify(value)));
-    return Promise.resolve();
-  }
-
-  return new Promise((resolve, reject) => {
-    chromeApi.storage.local.set(values, () => {
-      if (chromeApi.runtime?.lastError) reject(new Error(chromeApi.runtime.lastError.message));
-      else resolve();
-    });
-  });
-}
-
 async function loadQuickAddData({ cleanRecent = true } = {}) {
-  const stored = await readStorage([STORAGE_KEY, RECENT_WORKSPACES_STORAGE_KEY]);
+  const stored = await readLocalStorage([STORAGE_KEY, RECENT_WORKSPACES_STORAGE_KEY]);
   const state = normalizeState(stored[STORAGE_KEY]);
   const storedRecentIds = stored[RECENT_WORKSPACES_STORAGE_KEY];
   const recentWorkspaceIds = normalizeRecentWorkspaceIds(storedRecentIds, state.workspaces);
 
   if (cleanRecent && JSON.stringify(storedRecentIds || []) !== JSON.stringify(recentWorkspaceIds)) {
-    await writeStorage({ [RECENT_WORKSPACES_STORAGE_KEY]: recentWorkspaceIds });
+    await writeLocalStorage({ [RECENT_WORKSPACES_STORAGE_KEY]: recentWorkspaceIds });
   }
   return { state, recentWorkspaceIds };
 }
@@ -182,7 +148,7 @@ async function quickAddCurrentPage(page) {
   const result = addPageToQuickAddData(current.state, current.recentWorkspaceIds, page);
   if (result.status === "empty") return result;
 
-  await writeStorage({
+  await writeLocalStorage({
     [STORAGE_KEY]: result.state,
     [RECENT_WORKSPACES_STORAGE_KEY]: result.recentWorkspaceIds,
   });
@@ -192,7 +158,7 @@ async function quickAddCurrentPage(page) {
 async function updateQuickAddedSite(input) {
   const current = await loadQuickAddData();
   const result = updateQuickAddedSiteData(current.state, current.recentWorkspaceIds, input);
-  await writeStorage({
+  await writeLocalStorage({
     [STORAGE_KEY]: result.state,
     [RECENT_WORKSPACES_STORAGE_KEY]: result.recentWorkspaceIds,
   });
@@ -202,7 +168,7 @@ async function updateQuickAddedSite(input) {
 async function deleteQuickAddedSite(siteId) {
   const current = await loadQuickAddData();
   const result = deleteQuickAddedSiteData(current.state, siteId);
-  await writeStorage({ [STORAGE_KEY]: result.state });
+  await writeLocalStorage({ [STORAGE_KEY]: result.state });
   return result;
 }
 

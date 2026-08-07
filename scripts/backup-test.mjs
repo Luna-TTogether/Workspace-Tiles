@@ -22,7 +22,11 @@ const sourceState = {
 
 const backup = createBackup(sourceState, "2026-07-28T10:49:10.000Z", "0.1.1");
 assert.equal(backup.format, "workspace-tiles-backup");
-assert.equal(backup.schemaVersion, 1);
+assert.equal(backup.schemaVersion, 2);
+assert.equal(backup.data.schemaVersion, 2);
+assert.ok(backup.data.contextTimeMigratedAt);
+assert.equal(backup.data.workspaces[0].createdAtOrigin, "legacy_migration");
+assert.equal(backup.data.workspaces[0].sites[0].addedAtOrigin, "legacy_migration");
 assert.equal(backup.data.workspaces[0].sites.length, 2);
 assert.equal("faviconUrl" in backup.data.workspaces[0].sites[0], false);
 assert.equal("expandedWorkspaceId" in backup.data, false);
@@ -36,13 +40,27 @@ assert.equal(validated.state.workspaces[0].cardFace, "note");
 assert.equal(validated.state.workspaces[0].tileSize, "medium");
 
 const legacyBackup = structuredClone(backup);
+legacyBackup.schemaVersion = 1;
+delete legacyBackup.data.schemaVersion;
+delete legacyBackup.data.contextTimeMigratedAt;
+delete legacyBackup.data.lastRecordedAt;
 delete legacyBackup.data.workspaces[0].note;
 delete legacyBackup.data.workspaces[0].cardFace;
 delete legacyBackup.data.workspaces[0].tileSize;
-const validatedLegacy = validateBackupData(legacyBackup);
+legacyBackup.data.workspaces.forEach((workspace) => {
+  delete workspace.createdAt;
+  delete workspace.createdAtOrigin;
+  workspace.sites.forEach((site) => {
+    delete site.addedAt;
+    delete site.addedAtOrigin;
+  });
+});
+const validatedLegacy = validateBackupData(legacyBackup, { now: Date.parse("2026-08-07T10:00:00.000Z") });
 assert.equal(validatedLegacy.state.workspaces[0].note, "");
 assert.equal(validatedLegacy.state.workspaces[0].cardFace, "sites");
 assert.equal(validatedLegacy.state.workspaces[0].tileSize, "large");
+assert.equal(validatedLegacy.state.workspaces[0].createdAt, "2026-08-07T09:59:59.999Z");
+assert.equal(validatedLegacy.state.workspaces[0].sites[0].addedAtOrigin, "legacy_migration");
 
 const emptyBackup = structuredClone(backup);
 emptyBackup.data.workspaces = [];
@@ -51,7 +69,7 @@ assert.equal(validatedEmpty.workspaceCount, 0);
 assert.equal(validatedEmpty.siteCount, 0);
 
 const futureBackup = structuredClone(backup);
-futureBackup.schemaVersion = 2;
+futureBackup.schemaVersion = 3;
 assert.throws(
   () => validateBackupData(futureBackup),
   /newer version/,

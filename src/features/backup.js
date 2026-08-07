@@ -1,9 +1,10 @@
 import { t } from "../core/i18n.js";
 import { normalizeState, normalizeTileSize } from "../core/state.js";
 import { getAppVersion, normalizeUrl } from "../core/utils.js";
+import { LEGACY_TIME_ORIGIN, RECORDED_TIME_ORIGIN, toValidIso } from "../core/context-time.js";
 
 const BACKUP_FORMAT = "workspace-tiles-backup";
-const BACKUP_SCHEMA_VERSION = 1;
+const BACKUP_SCHEMA_VERSION = 2;
 const MAX_BACKUP_FILE_SIZE = 10 * 1024 * 1024;
 
 function createBackup(sourceState, exportedAt = new Date().toISOString(), appVersion = getAppVersion()) {
@@ -14,6 +15,9 @@ function createBackup(sourceState, exportedAt = new Date().toISOString(), appVer
     exportedAt,
     appVersion,
     data: {
+      schemaVersion: data.schemaVersion,
+      contextTimeMigratedAt: data.contextTimeMigratedAt,
+      lastRecordedAt: data.lastRecordedAt,
       workspaces: data.workspaces.map((workspace) => ({
         ...workspace,
         sites: workspace.sites.map(({ faviconUrl, ...site }) => site),
@@ -66,7 +70,7 @@ class BackupValidationError extends Error {
   }
 }
 
-function validateBackupData(value) {
+function validateBackupData(value, { now = Date.now() } = {}) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new BackupValidationError(t("无法导入：这不是有效的 Workspace Tiles 备份文件。"));
   }
@@ -89,6 +93,12 @@ function validateBackupData(value) {
     throw new BackupValidationError(t("无法导入：备份中的工作区数据无效。"));
   }
 
+  const requiresContextTime = value.schemaVersion >= 2;
+  const validOrigins = new Set([RECORDED_TIME_ORIGIN, LEGACY_TIME_ORIGIN]);
+  if (requiresContextTime && !toValidIso(value.data.contextTimeMigratedAt)) {
+    throw new BackupValidationError(t("无法导入：备份中的工作区数据无效。"));
+  }
+
   const workspaceIds = new Set();
   const workspaces = value.data.workspaces.map((workspace) => {
     if (!workspace || typeof workspace !== "object" || Array.isArray(workspace)) {
@@ -102,6 +112,12 @@ function validateBackupData(value) {
       throw new BackupValidationError(t("无法导入：工作区名称或网站列表无效。"));
     }
     workspaceIds.add(workspaceId);
+    if (requiresContextTime && (
+      !toValidIso(workspace.createdAt)
+      || !validOrigins.has(workspace.createdAtOrigin)
+    )) {
+      throw new BackupValidationError(t("无法导入：备份中的工作区数据无效。"));
+    }
 
     const siteIds = new Set();
     const sites = workspace.sites.map((site) => {
@@ -118,18 +134,52 @@ function validateBackupData(value) {
       if (typeof site.url !== "string" || !site.url.trim() || !normalizeUrl(site.url)) {
         throw new BackupValidationError(t("无法导入：备份中包含无效的网址。"));
       }
+      if (requiresContextTime && (
+        !toValidIso(site.addedAt)
+        || !validOrigins.has(site.addedAtOrigin)
+      )) {
+        throw new BackupValidationError(t("无法导入：备份中包含无效的网站。"));
+      }
       siteIds.add(siteId);
-      return { id: siteId, name: site.name.trim(), url: normalizeUrl(site.url) };
+      return {
+        id: siteId,
+        name: site.name.trim(),
+        url: normalizeUrl(site.url),
+        ...(requiresContextTime ? {
+          addedAt: toValidIso(site.addedAt),
+          addedAtOrigin: site.addedAtOrigin,
+        } : {}),
+      };
     });
 
     const note = typeof workspace.note === "string" ? workspace.note : "";
     const cardFace = workspace.cardFace === "note" ? "note" : "sites";
     const tileSize = normalizeTileSize(workspace.tileSize);
-    return { id: workspaceId, name: workspace.name.trim(), note, cardFace, tileSize, sites };
+    return {
+      id: workspaceId,
+      name: workspace.name.trim(),
+      note,
+      cardFace,
+      tileSize,
+      ...(requiresContextTime ? {
+        createdAt: toValidIso(workspace.createdAt),
+        createdAtOrigin: workspace.createdAtOrigin,
+      } : {}),
+      sites,
+    };
   });
 
+  const state = normalizeState({
+    ...(requiresContextTime ? {
+      schemaVersion: value.data.schemaVersion,
+      contextTimeMigratedAt: value.data.contextTimeMigratedAt,
+      lastRecordedAt: value.data.lastRecordedAt,
+    } : {}),
+    workspaces,
+  }, { now });
+
   return {
-    state: { workspaces },
+    state,
     workspaceCount: workspaces.length,
     siteCount: workspaces.reduce((total, workspace) => total + workspace.sites.length, 0),
   };

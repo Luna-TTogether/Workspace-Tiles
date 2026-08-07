@@ -43,6 +43,7 @@ import {
   STORAGE_KEY,
   UI_STORAGE_KEY,
   getState,
+  getStateInitializationError,
   getUiState,
   getWorkspace,
   initializeState,
@@ -54,6 +55,7 @@ import {
   saveState,
   setState,
 } from "./src/core/state.js";
+import { createRecordedSiteFields } from "./src/core/context-time.js";
 import { removeSiteForUndo, restoreDeletedSiteData } from "./src/features/site-delete.js";
 import { renderFavicon } from "./src/core/favicon.js";
 import {
@@ -176,6 +178,7 @@ async function init() {
   await initializeState();
   await initializeUiState();
   render();
+  if (getStateInitializationError()) showToast(t("无法保存数据升级，请重试。"), "error");
   const createWorkspaceRequested = new URLSearchParams(window.location.search).get("createWorkspace") === "1";
   const restoredWorkspaceId = getUiState().expandedWorkspaceId;
   if (!createWorkspaceRequested && restoredWorkspaceId && getWorkspace(restoredWorkspaceId)) {
@@ -1281,7 +1284,8 @@ async function appendSitesToLatestWorkspace(workspaceId, sites) {
     throw error;
   }
 
-  workspace.sites.push(...sites);
+  const timeFields = createRecordedSiteFields(latestState);
+  workspace.sites.push(...sites.map((site) => ({ ...site, ...timeFields })));
   setState(latestState);
   try {
     await saveState();

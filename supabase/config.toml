@@ -1,0 +1,4 @@
+project_id = "yjgaesbstakiaciawceb"
+
+[functions.workspace-ai]
+verify_jwt = true
