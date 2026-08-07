@@ -1,6 +1,6 @@
 import { STORAGE_KEY, normalizeState } from "../core/state.js";
 import { normalizeExplicitFaviconUrl } from "../core/favicon-candidates.js";
-import { createId, getChromeApi, getSiteFallbackName, normalizeUrl } from "../core/utils.js";
+import { createId, getAutomaticSiteName, getChromeApi, getSiteFallbackName, normalizeUrl } from "../core/utils.js";
 
 const RECENT_WORKSPACES_STORAGE_KEY = "workspaceTilesRecentWorkspaceIds";
 const MAX_RECENT_WORKSPACES = 5;
@@ -60,7 +60,7 @@ function normalizeQuickAddPage(page) {
   const faviconUrl = normalizeExplicitFaviconUrl(page?.favIconUrl);
   return {
     id: createId("site"),
-    name: title || getSiteFallbackName(url),
+    name: getAutomaticSiteName(title, url),
     url,
     ...(faviconUrl ? { faviconUrl } : {}),
   };

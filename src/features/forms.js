@@ -1,6 +1,6 @@
 import { t } from "../core/i18n.js";
 import { getState, getWorkspace, saveState } from "../core/state.js";
-import { createId, getChromeApi, getSiteFallbackName, getUrlValidationError, normalizeUrl } from "../core/utils.js";
+import { createId, getAutomaticSiteName, getChromeApi, getSiteFallbackName, getUrlValidationError, normalizeUrl } from "../core/utils.js";
 import { closeModal, createButton, createDialog, createDialogTitle, createEmptyState, createIconButton, getCurrentModal, setButtonLoading, setFieldError, showModal, showToast } from "../ui/ui-components.js";
 
 let renderApp = () => {};
@@ -412,7 +412,7 @@ function flattenSelectedBookmarks(tree, selectedIds) {
   const visit = (node) => {
     if (node.url && selectedIds.has(node.id)) {
       const url = String(node.url);
-      const name = String(node.title || "").trim() || getSiteFallbackName(url);
+      const name = getAutomaticSiteName(node.title, url);
       sites.push({ id: createId("site"), name, url });
     }
     if (Array.isArray(node.children)) node.children.forEach(visit);
@@ -496,7 +496,7 @@ function normalizeOpenTab(tab) {
   return {
     key: JSON.stringify([tabId, url]),
     title,
-    name: pageTitle || getSiteFallbackName(url) || t("未命名网站"),
+    name: getAutomaticSiteName(pageTitle, url) || t("未命名网站"),
     url,
     faviconUrl: String(tab?.favIconUrl || ""),
   };
