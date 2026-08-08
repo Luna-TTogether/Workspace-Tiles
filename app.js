@@ -78,6 +78,7 @@ import {
 } from "./src/features/workspace-note-card.js";
 
 const t = (key, values) => i18n.t(key, values);
+const SHOW_AI_SETTING = false;
 const grid = document.getElementById("workspaceGrid");
 const emptyPageState = document.getElementById("emptyPageState");
 const backdrop = document.getElementById("modalBackdrop");
@@ -370,9 +371,10 @@ function renderGeneralPanel(content) {
   thumb.setAttribute("aria-hidden", "true");
   toggle.append(thumb);
   row.append(label, toggle);
-  settings.append(languageRow, row);
+  settings.append(languageRow);
+  if (SHOW_AI_SETTING) settings.append(row);
   content.append(heading, settings);
-  void configureAiSetting(content, toggle);
+  if (SHOW_AI_SETTING) void configureAiSetting(content, toggle);
 }
 
 async function configureAiSetting(content, toggle) {
@@ -614,7 +616,7 @@ function renderAboutPanel(content) {
   heading.textContent = "Workspace Tiles";
   const version = document.createElement("p");
   version.className = "about-version";
-  version.textContent = `Version ${getAppVersion()} · 2026.08.04`;
+  version.textContent = `Version ${getAppVersion()} · 2026.08.08`;
 
   const details = document.createElement("dl");
   details.className = "about-details";

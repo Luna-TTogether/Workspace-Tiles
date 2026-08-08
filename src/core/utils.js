@@ -30,7 +30,7 @@ function getChromeApi() {
 }
 
 function getAppVersion() {
-  return getChromeApi()?.runtime?.getManifest?.().version || "0.1.5";
+  return getChromeApi()?.runtime?.getManifest?.().version || "0.1.6";
 }
 
 function normalizeUrl(value) {
