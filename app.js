@@ -32,7 +32,6 @@ import {
   showToast,
   trapModalFocus,
 } from "./src/ui/ui-components.js";
-import { getAiConsent, setAiConsent } from "./src/features/ai-consent.js";
 import {
   MAX_BACKUP_FILE_SIZE,
   BackupValidationError,
@@ -78,7 +77,6 @@ import {
 } from "./src/features/workspace-note-card.js";
 
 const t = (key, values) => i18n.t(key, values);
-const SHOW_AI_SETTING = false;
 const grid = document.getElementById("workspaceGrid");
 const emptyPageState = document.getElementById("emptyPageState");
 const backdrop = document.getElementById("modalBackdrop");
@@ -194,8 +192,6 @@ async function init() {
   if (createWorkspaceRequested) {
     window.history.replaceState(null, "", window.location.pathname);
     requestAnimationFrame(() => openWorkspaceForm(null, null, { openTabs: selectTabsRequested }));
-  } else if (!restoresWorkspace) {
-    requestAnimationFrame(() => { void maybeShowAiConsentPrompt(); });
   }
 }
 
@@ -353,148 +349,8 @@ function renderGeneralPanel(content) {
   languageSelectWrap.append(languageSelect, languageChevron);
   languageRow.append(languageLabel, languageSelectWrap);
 
-  const row = document.createElement("div");
-  row.className = "general-setting-row";
-  const label = document.createElement("span");
-  label.className = "general-setting-label";
-  label.textContent = "AI";
-  const toggle = document.createElement("button");
-  toggle.type = "button";
-  toggle.className = "ai-setting-switch";
-  toggle.setAttribute("role", "switch");
-  toggle.setAttribute("aria-checked", "false");
-  toggle.setAttribute("aria-label", t("开启 AI"));
-  toggle.disabled = true;
-  toggle.setAttribute("aria-busy", "true");
-  const thumb = document.createElement("span");
-  thumb.className = "ai-setting-switch-thumb";
-  thumb.setAttribute("aria-hidden", "true");
-  toggle.append(thumb);
-  row.append(label, toggle);
   settings.append(languageRow);
-  if (SHOW_AI_SETTING) settings.append(row);
   content.append(heading, settings);
-  if (SHOW_AI_SETTING) void configureAiSetting(content, toggle);
-}
-
-async function configureAiSetting(content, toggle) {
-  try {
-    const consent = await getAiConsent();
-    if (!content.isConnected || managementActiveTab !== "general") return;
-    const enabled = consent.state === "accepted";
-    toggle.disabled = false;
-    toggle.removeAttribute("aria-busy");
-    toggle.setAttribute("aria-checked", String(enabled));
-    toggle.setAttribute("aria-label", enabled ? t("关闭 AI") : t("开启 AI"));
-    if (enabled) {
-      toggle.addEventListener("click", async () => {
-        if (toggle.disabled) return;
-        toggle.disabled = true;
-        toggle.setAttribute("aria-busy", "true");
-        try {
-          await setAiConsent("declined");
-          if (content.isConnected) renderGeneralPanelAfterReset(content);
-          showToast(t("AI 已关闭"), "success");
-        } catch {
-          showToast(t("无法保存 AI 设置，请重试。"), "error");
-          if (toggle.isConnected) {
-            toggle.disabled = false;
-            toggle.removeAttribute("aria-busy");
-          }
-        }
-      });
-    } else {
-      toggle.addEventListener("click", () => {
-        const managementButton = document.getElementById("managementButton");
-        openAiConsentDialog({
-          returnFocus: toggle,
-          onComplete: (state) => {
-            openManagementPanel(managementButton, "general");
-            if (state === "accepted") showToast(t("AI 已开启"), "success");
-          },
-        });
-      });
-    }
-  } catch {
-    toggle.disabled = false;
-    toggle.removeAttribute("aria-busy");
-    showToast(t("无法读取 AI 设置，请重试。"), "error");
-  }
-}
-
-function renderGeneralPanelAfterReset(content) {
-  content.replaceChildren();
-  renderGeneralPanel(content);
-}
-
-async function maybeShowAiConsentPrompt() {
-  try {
-    const consent = await getAiConsent();
-    if (consent.state === "unknown" && !getCurrentModal()) openAiConsentDialog();
-  } catch {
-    // 设置读取失败时不展示弹窗，也不会触发任何 AI 请求。
-  }
-}
-
-function openAiConsentDialog({ returnFocus = null, onComplete = null } = {}) {
-  const dialog = createDialog("small ai-consent-dialog");
-  dialog.querySelector(".dialog-header").append(createDialogTitle(t("开启 AI")));
-
-  const copy = document.createElement("div");
-  copy.className = "ai-consent-copy";
-  [
-    t("Workspace Tiles 可以根据打开的标签页整理 Workspace。"),
-    t("开启后，页面标题、摘要和域名会发送给 AI 服务来生成建议。"),
-    t("注意，不会发送 Cookie、表单内容或完整浏览记录。可以随时关闭。"),
-  ].forEach((message) => {
-    const paragraph = document.createElement("p");
-    paragraph.textContent = message;
-    copy.append(paragraph);
-  });
-
-  const error = document.createElement("p");
-  error.className = "field-error ai-consent-error";
-  error.setAttribute("role", "alert");
-  error.hidden = true;
-  dialog.querySelector(".dialog-content").append(copy, error);
-
-  const declineButton = createButton(t("暂不开启"));
-  const acceptButton = createButton(t("开启 AI"), null, {
-    variant: "primary",
-    loadingText: t("开启中"),
-  });
-  acceptButton.dataset.autofocus = "true";
-  dialog.querySelector(".dialog-footer").append(declineButton, acceptButton);
-
-  let saving = false;
-  const saveChoice = async (state) => {
-    if (saving) return;
-    saving = true;
-    error.hidden = true;
-    error.textContent = "";
-    declineButton.disabled = true;
-    if (state === "accepted") setButtonLoading(acceptButton, true);
-    else acceptButton.disabled = true;
-    try {
-      await setAiConsent(state);
-      closeModal();
-      onComplete?.(state);
-    } catch {
-      error.textContent = t("无法保存 AI 设置，请重试。");
-      error.hidden = false;
-      declineButton.disabled = false;
-      setButtonLoading(acceptButton, false);
-    } finally {
-      saving = false;
-    }
-  };
-
-  declineButton.addEventListener("click", () => { void saveChoice("declined"); });
-  acceptButton.addEventListener("click", () => { void saveChoice("accepted"); });
-  showModal(dialog, null, {
-    returnFocus,
-    onDismiss: () => { void saveChoice("declined"); },
-  });
 }
 
 function createManagementCopy(title, paragraphs) {

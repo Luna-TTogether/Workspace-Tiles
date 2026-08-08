@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   addPageToQuickAddData,
   commitQuickAdd,
@@ -149,5 +150,22 @@ await assert.rejects(commitQuickAdd({
   },
 }));
 assert.equal(failedWriteCalls, 1, "正式状态失败后不得继续写最近 Workspace");
+
+const popupHtml = readFileSync(new URL("../popup.html", import.meta.url), "utf8");
+const popupJs = readFileSync(new URL("../popup.js", import.meta.url), "utf8");
+const popupCss = readFileSync(new URL("../styles/popup.css", import.meta.url), "utf8");
+const workspaceIndex = popupHtml.indexOf('id="workspaceSelect"');
+const createIndex = popupHtml.indexOf('id="createFromWindowButton"');
+assert.ok(workspaceIndex > 0 && workspaceIndex < createIndex, "Workspace 选择应先于低优先级的新建入口");
+assert.equal(/type=["']search["']/u.test(popupHtml), false, "快捷加入不增加常驻搜索");
+assert.match(popupHtml, /class="form quick-add-form"/u, "快捷加入应复用现有表单样式");
+assert.match(popupHtml, /id="siteIcon"/u, "快捷加入表单应展示当前网页图标");
+assert.match(popupJs, /renderFavicon\(siteIcon, session\.page\)/u, "网页图标应通过统一 favicon 渲染器生成");
+assert.equal(popupJs.includes("quickAddCurrentPage("), false, "打开 Popup 不得调用旧的立即写入流程");
+assert.equal(popupJs.includes("commitQuickAdd({"), true, "只有提交处理器调用确认保存流程");
+assert.doesNotMatch(popupCss, /max-height:\s*min\([^;]*100vh|grid-template-rows:[^;]*minmax\(0,\s*1fr\)/u,
+  "原生 Chrome Popup 不得用视口循环尺寸压缩内容区");
+assert.match(popupCss, /\.quick-add-dialog\s*\{[\s\S]*?max-height:\s*600px;/u,
+  "Popup 应使用明确上限并由内容决定实际高度");
 
 console.log("网页快捷加入测试通过：Draft 无写入、确认保存、真实时间、重复、并发与存储失败规则均符合预期。");
